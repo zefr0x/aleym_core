@@ -2,6 +2,8 @@
 
 <h1>Aleym | عَلِيم (Core Library)</h1>
 
+[![pre-commit.ci status](https://results.pre-commit.ci/badge/github/zefr0x/aleym_core/main.svg)](https://results.pre-commit.ci/latest/github/zefr0x/aleym_core/main)
+
 This repository contain the core library component of Aleym. A game changing, feature-rich, and highly extensible **news
 aggregation system and knowledge base** designed to streamline the process of news aggregation. This system prioritizes
 organization, **efficiency**, **security**, and **privacy**.
