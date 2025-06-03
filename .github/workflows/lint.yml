@@ -1,0 +1,63 @@
+# This Github workflow will run lints and fmt for rust on push to main or pull request open.
+
+name: lint
+on:
+    push:
+        branches:
+            - main
+        paths:
+            - "**/src/**"
+            - "**/Cargo.toml"
+            - rustfmt.toml
+            - clippy.toml
+    pull_request:
+        types: [opened, reopened, synchronize, ready_for_review]
+        paths:
+            - "**/src/**"
+            - "**/Cargo.toml"
+            - rustfmt.toml
+            - clippy.toml
+    workflow_dispatch:
+
+jobs:
+    fmt:
+        name: rust-fmt
+        permissions:
+            contents: read
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout Repository
+              uses: actions/checkout@v4
+
+            - name: Install Rust Toolchain
+              uses: dtolnay/rust-toolchain@v1
+              with:
+                  toolchain: stable
+                  components: rustfmt
+
+            - name: Cache Build Artifacts
+              uses: Swatinem/rust-cache@v2.8.2
+
+            - name: Check Formating
+              run: cargo fmt --check
+
+    clippy:
+        name: cargo-clippy
+        permissions:
+            contents: read
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout Repository
+              uses: actions/checkout@v4
+
+            - name: Install Rust Toolchain
+              uses: dtolnay/rust-toolchain@v1
+              with:
+                  toolchain: stable
+                  components: clippy
+
+            - name: Cache Build Artifacts
+              uses: Swatinem/rust-cache@v2.8.2
+
+            - name: Check Lints
+              run: cargo clippy -- -D warnings
