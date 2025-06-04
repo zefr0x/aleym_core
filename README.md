@@ -2,6 +2,9 @@
 
 <h1>Aleym | عَلِيم (Core Library)</h1>
 
+[![release](https://github.com/zefr0x/aleym_core/actions/workflows/publish_release.yml/badge.svg)](https://github.com/zefr0x/aleym_core/actions/workflows/publish_release.yml)
+[![test](https://github.com/zefr0x/aleym_core/actions/workflows/test.yml/badge.svg)](https://github.com/zefr0x/aleym_core/actions/workflows/test.yml)
+[![lint](https://github.com/zefr0x/aleym_core/actions/workflows/lint.yml/badge.svg)](https://github.com/zefr0x/aleym_core/actions/workflows/lint.yml)
 [![pre-commit.ci status](https://results.pre-commit.ci/badge/github/zefr0x/aleym_core/main.svg)](https://results.pre-commit.ci/latest/github/zefr0x/aleym_core/main)
 
 This repository contain the core library component of Aleym. A game changing, feature-rich, and highly extensible **news
