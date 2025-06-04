@@ -10,7 +10,7 @@ homepage = "https://github.com/zefr0x/aleym_core"
 repository = "https://github.com/zefr0x/aleym_core.git"
 license = "AGPL-3.0-only"
 keywords = ["news", "aggregation", "knowledge", "rss", "feed"]
-exclude = [".github", ".gitignore", ".pre-commit-config.yaml", "ARCHITECTURE.md", "CONTRIBUTING.md"]
+exclude = [".github", ".gitignore", ".pre-commit-config.yaml", "ARCHITECTURE.md", "CONTRIBUTING.md", "justfile"]
 
 # TODO: Consider commented lints when they are stable.
 [workspace.lints.rust]
