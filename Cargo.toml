@@ -1,0 +1,13 @@
+[package]
+name = "aleym_core"
+version = "0.1.0-alpha.0"
+authors = ["zefr0x"]
+edition = "2024"
+description = "Extensible news aggregation and knowledge-base engine (Core Library Component of Aleym)"
+readme = "README.md"
+documentation = "https://docs.rs/aleym_core"
+homepage = "https://github.com/zefr0x/aleym_core"
+repository = "https://github.com/zefr0x/aleym_core.git"
+license = "AGPL-3.0-only"
+keywords = ["news", "aggregation", "knowledge", "rss", "feed"]
+exclude = [".github", ".gitignore", "ARCHITECTURE.md", "CONTRIBUTING.md"]
