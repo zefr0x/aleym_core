@@ -12,6 +12,9 @@ license = "AGPL-3.0-only"
 keywords = ["news", "aggregation", "knowledge", "rss", "feed"]
 exclude = [".github", ".gitignore", ".pre-commit-config.yaml", "ARCHITECTURE.md", "CONTRIBUTING.md", "justfile"]
 
+[workspace]
+members = [".", "tools/db_manager"]
+
 # TODO: Consider commented lints when they are stable.
 [workspace.lints.rust]
 absolute_paths_not_starting_with_crate = "deny"
@@ -141,12 +144,16 @@ verbose_file_reads = "warn"
 wildcard_dependencies = "deny"
 wildcard_enum_match_arm = "warn"
 
+[workspace.dependencies]
+sea-orm-migration = { version = "2.0.0-rc.32", features = ["sqlx-sqlite", "runtime-tokio"] }
+tokio = { version = "1", features = ["rt", "macros"] }
+
 [dependencies]
 sea-orm = { version = "2.0.0-rc.32", default-features = false, features = ["sqlx-sqlite", "runtime-tokio", "macros"] }
-sea-orm-migration = { version = "2.0.0-rc.32", features = ["sqlx-sqlite", "runtime-tokio"] }
+sea-orm-migration = { workspace = true }
 thiserror = "2"
 tracing = { version = "0.1", features = ["release_max_level_debug"] }
 
 [dev-dependencies]
-tokio = { version = "1", features = ["rt", "macros"] }
+tokio = { workspace = true }
 tracing-test = "0.2.6"

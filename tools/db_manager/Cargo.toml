@@ -1,0 +1,8 @@
+[package]
+name = "db_manager"
+edition = "2024"
+
+[dependencies]
+aleym_core = { path = "../../" }
+sea-orm-migration = { workspace = true }
+tokio = { workspace = true }
