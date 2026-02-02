@@ -140,3 +140,13 @@ use_debug = "warn"
 verbose_file_reads = "warn"
 wildcard_dependencies = "deny"
 wildcard_enum_match_arm = "warn"
+
+[dependencies]
+sea-orm = { version = "2.0.0-rc.32", default-features = false, features = ["sqlx-sqlite", "runtime-tokio", "macros"] }
+sea-orm-migration = { version = "2.0.0-rc.32", features = ["sqlx-sqlite", "runtime-tokio"] }
+thiserror = "2"
+tracing = { version = "0.1", features = ["release_max_level_debug"] }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["rt", "macros"] }
+tracing-test = "0.2.6"
