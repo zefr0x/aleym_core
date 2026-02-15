@@ -7,4 +7,10 @@ pub enum NetworkError {
 	#[cfg(feature = "net_interface_tor")]
 	#[error("Arti error occurred: {0}")]
 	ArtiError(#[from] arti_client::Error),
+	#[cfg(feature = "net_transport_tls")]
+	#[error("TLS error occurred: {0}")]
+	RustlsError(#[from] tokio_rustls::rustls::Error),
+	#[cfg(feature = "net_transport_tls")]
+	#[error("Invalid DNS name error: {0}")]
+	InvalidDnsName(#[from] tokio_rustls::rustls::pki_types::InvalidDnsNameError),
 }

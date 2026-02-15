@@ -6,6 +6,7 @@
 //!
 //! * `net_interface_clear` (default) -- build with support for clear interface to the internet
 //! * `net_interface_tor` -- build with support for Tor interface
+//! * `net_transport_tls` -- build with TLS encryption support (e.g. for HTTPS)
 
 mod db;
 mod error;
