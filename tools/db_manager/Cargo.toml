@@ -5,4 +5,4 @@ edition = "2024"
 [dependencies]
 aleym_core = { path = "../../" }
 sea-orm-migration = { workspace = true }
-tokio = { workspace = true }
+tokio = { workspace = true, features = ["rt", "macros"] }

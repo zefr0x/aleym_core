@@ -146,14 +146,20 @@ wildcard_enum_match_arm = "warn"
 
 [workspace.dependencies]
 sea-orm-migration = { version = "2.0.0-rc.32", features = ["sqlx-sqlite", "runtime-tokio"] }
-tokio = { version = "1", features = ["rt", "macros"] }
+tokio = { version = "1" }
+
+[features]
+default = ["net_interface_clear"]
+net_interface_clear = ["tokio/net"]
+net_transport_tcp = []
 
 [dependencies]
 sea-orm = { version = "2.0.0-rc.32", default-features = false, features = ["sqlx-sqlite", "runtime-tokio", "macros"] }
 sea-orm-migration = { workspace = true }
 thiserror = "2"
+tokio = { workspace = true }
 tracing = { version = "0.1", features = ["release_max_level_debug"] }
 
 [dev-dependencies]
-tokio = { workspace = true }
+tokio = { workspace = true, features = ["rt", "macros"] }
 tracing-test = "0.2.6"

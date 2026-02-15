@@ -1,13 +1,22 @@
-//! Core library powering Aleym.
+//! # Aleym (Core Library)
+//!
+//! Core library powering Aleym knowledge base and news aggregation system.
+//!
+//! ## Feature flags
+//!
+//! * `net_interface_clear` (default) -- build with support for clear interface to the internet
 
 mod db;
 mod error;
+mod net;
 
 pub use db::Migrator as DbMigrator;
 pub use error::Error;
 
 pub struct Representative {
 	storage: db::Connection,
+	#[expect(unused)]
+	network: net::Network,
 }
 
 impl Representative {
@@ -16,6 +25,7 @@ impl Representative {
 
 		Ok(Self {
 			storage: db::Connection::new(database_file).await?,
+			network: net::Network::new().await?,
 		})
 	}
 
