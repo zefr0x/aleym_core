@@ -5,6 +5,7 @@
 //! ## Feature flags
 //!
 //! * `net_interface_clear` (default) -- build with support for clear interface to the internet
+//! * `net_interface_tor` -- build with support for Tor interface
 
 mod db;
 mod error;

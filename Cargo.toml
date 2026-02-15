@@ -151,13 +151,24 @@ tokio = { version = "1" }
 [features]
 default = ["net_interface_clear"]
 net_interface_clear = ["tokio/net"]
+net_interface_tor = ["dep:arti-client", "dep:tor-rtcompat"]
 net_transport_tcp = []
 
 [dependencies]
+# TODO: Enable `onion-service-client` feature when it's security enough.
+# FIX: `libsqlite3-sys` version in `arti-client` conflicts with version in `sea-orm` so we can't use the latest version.
+# FIX: This version uses tor-rtcompat v0.31.0 which compiles `aws-lc-rs` by default even when its not being used.
+arti-client = { version = "0.31.0", default-features = false, features = [
+	"compression",
+	"rustls",
+	"tokio",
+], optional = true }
 sea-orm = { version = "2.0.0-rc.32", default-features = false, features = ["sqlx-sqlite", "runtime-tokio", "macros"] }
 sea-orm-migration = { workspace = true }
 thiserror = "2"
 tokio = { workspace = true }
+# TODO: Expose [`tor_rtcompat::PreferredRuntime`] via `arti-client`, so we don't need this.
+tor-rtcompat = { version = "0.31.0", optional = true }
 tracing = { version = "0.1", features = ["release_max_level_debug"] }
 
 [dev-dependencies]
