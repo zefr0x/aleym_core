@@ -1,6 +1,7 @@
 mod client;
 mod error;
 mod interfaces;
+mod protocols;
 mod transports;
 
 #[cfg(feature = "net_transport_tls")]
@@ -40,7 +41,12 @@ impl Network {
 			.with_no_client_auth();
 
 			// Supported upper layer protocols
-			config.alpn_protocols.extend(vec![]);
+			config.alpn_protocols.extend(vec![
+				#[cfg(feature = "net_protocol_http2")]
+				b"h2".to_vec(),
+				#[cfg(feature = "net_protocol_http1")]
+				b"http/1.1".to_vec(),
+			]);
 
 			Arc::new(config)
 		};

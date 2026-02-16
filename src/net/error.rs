@@ -13,4 +13,16 @@ pub enum NetworkError {
 	#[cfg(feature = "net_transport_tls")]
 	#[error("Invalid DNS name error: {0}")]
 	InvalidDnsName(#[from] tokio_rustls::rustls::pki_types::InvalidDnsNameError),
+	#[cfg(any(feature = "net_protocol_http1", feature = "net_protocol_http2"))]
+	#[error("Hyper error occurred: {0}")]
+	HyperError(#[from] hyper::Error),
+	#[cfg(any(feature = "net_protocol_http1", feature = "net_protocol_http2"))]
+	#[error("Target host wasn't specified in the request")]
+	NoTargetHost,
+	#[cfg(any(feature = "net_protocol_http1", feature = "net_protocol_http2"))]
+	#[error("URI scheme wasn't specified in the request")]
+	NoProtocolScheme,
+	#[cfg(any(feature = "net_protocol_http1", feature = "net_protocol_http2"))]
+	#[error("Request URI scheme is not supported")]
+	UnsupportedProtocolScheme,
 }

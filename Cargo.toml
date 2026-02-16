@@ -149,11 +149,14 @@ sea-orm-migration = { version = "2.0.0-rc.32", features = ["sqlx-sqlite", "runti
 tokio = { version = "1" }
 
 [features]
-default = ["net_interface_clear"]
+default = ["net_interface_clear", "net_protocol_http1", "net_protocol_http2"]
 net_interface_clear = ["tokio/net"]
 net_interface_tor = ["dep:arti-client", "dep:tor-rtcompat"]
 net_transport_tcp = []
 net_transport_tls = ["net_transport_tcp", "dep:tokio-rustls", "dep:rustls-platform-verifier"]
+_net_protocol_http = ["dep:hyper", "dep:hyper-util"]
+net_protocol_http1 = ["_net_protocol_http", "net_transport_tcp", "hyper/http1"]
+net_protocol_http2 = ["_net_protocol_http", "net_transport_tcp", "hyper/http2"]
 
 [dependencies]
 # TODO: Enable `onion-service-client` feature when it's security enough.
@@ -164,6 +167,9 @@ arti-client = { version = "0.31.0", default-features = false, features = [
 	"rustls",
 	"tokio",
 ], optional = true }
+cfg-if = "1.0"
+hyper = { version = "1.8", features = ["client"], optional = true }
+hyper-util = { version = "0.1.20", features = ["client", "tokio"], optional = true }
 rustls-platform-verifier = { version = "0.6", optional = true }
 sea-orm = { version = "2.0.0-rc.32", default-features = false, features = ["sqlx-sqlite", "runtime-tokio", "macros"] }
 sea-orm-migration = { workspace = true }

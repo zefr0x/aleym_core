@@ -5,10 +5,11 @@ use super::{AsyncStream, tcp};
 use crate::net::NetworkError;
 
 pub enum AlpnProtocols {
+	#[cfg(feature = "net_protocol_http2")]
+	H2,
 	Fallback,
 }
 
-#[expect(unused)]
 pub trait Transport: super::tcp::Transport {
 	fn tls_config(&self) -> Arc<tokio_rustls::rustls::ClientConfig>;
 
@@ -26,8 +27,9 @@ pub trait Transport: super::tcp::Transport {
 		let alpn_protocol = {
 			let (_, tls_client_connection) = tls_stream.get_ref();
 
-			#[expect(clippy::match_single_binding)]
 			match tls_client_connection.alpn_protocol() {
+				#[cfg(feature = "net_protocol_http2")]
+				Some(b"h2") => AlpnProtocols::H2,
 				_ => AlpnProtocols::Fallback,
 			}
 		};
@@ -35,3 +37,6 @@ pub trait Transport: super::tcp::Transport {
 		Ok((tokio_rustls::TlsStream::Client(tls_stream), alpn_protocol))
 	}
 }
+
+#[cfg(any(feature = "net_protocol_http1", feature = "net_protocol_http2"))]
+impl<T: Transport> crate::net::protocols::http::Https for T {}

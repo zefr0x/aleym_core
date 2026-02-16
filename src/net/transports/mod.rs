@@ -4,4 +4,4 @@ pub(super) mod tcp;
 pub(super) mod tls;
 
 #[cfg(feature = "net_transport_tcp")]
-pub(super) trait AsyncStream: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send {}
+pub(super) trait AsyncStream: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + std::fmt::Debug {}
