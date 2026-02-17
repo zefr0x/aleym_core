@@ -98,3 +98,82 @@ impl Network {
 		}
 	}
 }
+
+#[cfg(test)]
+mod tests {
+	#[cfg(all(
+		feature = "net_interface_clear",
+		feature = "net_transport_tls",
+		feature = "net_protocol_http1"
+	))]
+	#[tokio::test]
+	#[tracing_test::traced_test]
+	async fn networking_clear_http1_tls() {
+		use super::{InterfaceType, Network};
+		use http_body_util::BodyExt;
+
+		let network = Network::new().await.unwrap();
+
+		let client = network.new_client(InterfaceType::Clear).await;
+
+		let target = hyper::Uri::from_static("https://check.torproject.org/api/ip");
+		let request = hyper::Request::builder()
+			.header(hyper::header::HOST, target.authority().unwrap().as_str())
+			.uri(&target)
+			.method(hyper::Method::GET)
+			.body(http_body_util::Empty::<hyper::body::Bytes>::new())
+			.unwrap();
+
+		let resp = client.http_request(request, false).await.unwrap();
+
+		assert_eq!(resp.status().as_u16(), 200);
+		assert_eq!(resp.version(), hyper::Version::HTTP_11);
+		assert_eq!(
+			resp.headers().get("content-type"),
+			Some(&hyper::header::HeaderValue::from_static("application/json"))
+		);
+
+		let body_bytes = resp.collect().await.unwrap().to_bytes();
+		let body_str = std::str::from_utf8(&body_bytes).unwrap();
+
+		assert!(body_str.contains("\"IsTor\":false"));
+	}
+
+	#[cfg(all(
+		feature = "net_interface_tor",
+		feature = "net_transport_tls",
+		feature = "net_protocol_http1"
+	))]
+	#[tokio::test]
+	#[tracing_test::traced_test]
+	async fn networking_tor_http1_tls() {
+		use super::{InterfaceType, Network};
+		use http_body_util::BodyExt;
+
+		let network = Network::new().await.unwrap();
+
+		let client = network.new_client(InterfaceType::Tor).await;
+
+		let target = hyper::Uri::from_static("https://check.torproject.org/api/ip");
+		let request = hyper::Request::builder()
+			.header(hyper::header::HOST, target.authority().unwrap().as_str())
+			.uri(&target)
+			.method(hyper::Method::GET)
+			.body(http_body_util::Empty::<hyper::body::Bytes>::new())
+			.unwrap();
+
+		let resp = client.http_request(request, false).await.unwrap();
+
+		assert_eq!(resp.status().as_u16(), 200);
+		assert_eq!(resp.version(), hyper::Version::HTTP_11);
+		assert_eq!(
+			resp.headers().get("content-type"),
+			Some(&hyper::header::HeaderValue::from_static("application/json"))
+		);
+
+		let body_bytes = resp.collect().await.unwrap().to_bytes();
+		let body_str = std::str::from_utf8(&body_bytes).unwrap();
+
+		assert!(body_str.contains("\"IsTor\":true"));
+	}
+}
