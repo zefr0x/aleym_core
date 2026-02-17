@@ -60,4 +60,4 @@ jobs:
               uses: Swatinem/rust-cache@v2.8.2
 
             - name: Check Lints
-              run: cargo clippy -- -D warnings
+              run: cargo clippy --all-features -- -D warnings
