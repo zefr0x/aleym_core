@@ -7,18 +7,17 @@ use sea_orm::{Database, DatabaseConnection};
 pub use error::StorageError;
 pub use migration::Migrator;
 
-/// Database connection
 #[derive(Clone, Debug)]
-pub struct Connection {
+pub struct StorageConnection {
 	connection: DatabaseConnection,
 }
 
-impl Connection {
+impl StorageConnection {
 	/// Construct and create a new database connection pool.
 	///
 	/// Parent directories must exist, they will not be created when needed.
 	/// If `database_file` is [`None`], a temporary in-memory database will be created.
-	pub async fn new(database_file: Option<&std::path::Path>) -> Result<Self, StorageError> {
+	pub(crate) async fn new(database_file: Option<&std::path::Path>) -> Result<Self, StorageError> {
 		let database_url = match database_file {
 			Some(database_file) => {
 				format!(

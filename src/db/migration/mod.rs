@@ -7,7 +7,7 @@ mod m20260227_022357_create_sources_storage;
 /// Database's `Migrator`.
 ///
 /// For comprehensive database migrations management.
-/// More capable than using [crate::Representative::has_pending_migrations()] and [crate::Representative::apply_migrations()].
+/// More capable than using [crate::StorageConnection::has_pending_migrations()] and [crate::StorageConnection::apply_migrations()].
 #[derive(Debug, Default)]
 #[non_exhaustive]
 pub struct Migrator;

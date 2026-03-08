@@ -14,11 +14,12 @@ mod db;
 mod error;
 mod net;
 
-pub use db::Migrator as DbMigrator;
+pub use db::{Migrator as DbMigrator, StorageConnection, StorageError};
 pub use error::Error;
 
 pub struct Representative {
-	storage: db::Connection,
+	// TODO: Consider if this should be exposed directly or not.
+	pub storage: db::StorageConnection,
 	#[expect(unused)]
 	network: net::Network,
 }
@@ -28,22 +29,8 @@ impl Representative {
 		tracing::trace!("initializing new Aleym Representative");
 
 		Ok(Self {
-			storage: db::Connection::new(database_file).await?,
+			storage: db::StorageConnection::new(database_file).await?,
 			network: net::Network::new().await?,
 		})
-	}
-
-	/// Return `true` if we have any pending migrations.
-	///
-	/// Useful to prepare the user interface before starting to apply them.
-	pub async fn has_pending_migrations(&self) -> Result<bool, Error> {
-		Ok(self.storage.has_pending_migrations().await?)
-	}
-
-	/// Apply all pending migrations. If there is none, it will silently fail.
-	///
-	/// This should be executed once after every update to avoid errors.
-	pub async fn apply_migrations(&self) -> Result<(), Error> {
-		Ok(self.storage.apply_migrations().await?)
 	}
 }
