@@ -28,19 +28,29 @@ impl StorageConnection {
 }
 
 #[cfg(test)]
-mod tests {
-	use super::*;
+pub(crate) mod tests {
+	use super::StorageConnection;
 	use tracing_test::traced_test;
 
-	#[tokio::test]
-	#[traced_test]
-	async fn apply_database_migrations() {
+	pub(crate) async fn test_connection_and_migrations() -> StorageConnection {
 		let con = StorageConnection::new(None).await.unwrap();
 
-		if con.has_pending_migrations().await.unwrap() {
-			con.apply_migrations().await.unwrap();
+		if con
+			.has_pending_migrations()
+			.await
+			.expect("Failed to check for pending migrations")
+		{
+			con.apply_migrations().await.expect("Failed to apply migrations");
 		} else {
 			panic!("Expected pending database migrations")
 		}
+
+		con
+	}
+
+	#[tokio::test]
+	#[traced_test]
+	async fn database_migrations() {
+		test_connection_and_migrations().await;
 	}
 }
