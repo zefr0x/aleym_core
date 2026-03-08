@@ -35,6 +35,8 @@ mod tests {
 
 		if con.has_pending_migrations().await.unwrap() {
 			con.apply_migrations().await.unwrap();
+		} else {
+			panic!("Expected pending database migrations")
 		}
 	}
 }

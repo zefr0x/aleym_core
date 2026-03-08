@@ -2,6 +2,8 @@
 
 use sea_orm_migration::prelude::*;
 
+mod m20260227_022357_create_sources_storage;
+
 /// Database's `Migrator`.
 ///
 /// For comprehensive database migrations management.
@@ -12,6 +14,6 @@ pub struct Migrator;
 
 impl MigratorTrait for Migrator {
 	fn migrations() -> Vec<Box<dyn MigrationTrait>> {
-		vec![]
+		vec![Box::new(m20260227_022357_create_sources_storage::Migration)]
 	}
 }

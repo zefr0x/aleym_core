@@ -171,7 +171,12 @@ cfg-if = "1.0"
 hyper = { version = "1.8", features = ["client"], optional = true }
 hyper-util = { version = "0.1.20", features = ["client", "tokio"], optional = true }
 rustls-platform-verifier = { version = "0.6", optional = true }
-sea-orm = { version = "2.0.0-rc.32", default-features = false, features = ["sqlx-sqlite", "runtime-tokio", "macros"] }
+sea-orm = { version = "2.0.0-rc.32", default-features = false, features = [
+	"sqlx-sqlite",
+	"runtime-tokio",
+	"macros",
+	"with-uuid",
+] }
 sea-orm-migration = { workspace = true }
 thiserror = "2"
 tokio = { workspace = true }
