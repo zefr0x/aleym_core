@@ -78,6 +78,8 @@ impl Network {
 	pub async fn new_client(&self, interface: InterfaceType) -> Client {
 		// TODO: Expose client specific config overwrites.
 		match interface {
+			#[cfg(any(test, not(any(feature = "net_interface_clear", feature = "net_interface_tor"))))]
+			InterfaceType::TestPlaceholder => unimplemented!(),
 			#[cfg(feature = "net_interface_clear")]
 			InterfaceType::Clear => Client::Clear(
 				interfaces::ClearInterface::new(

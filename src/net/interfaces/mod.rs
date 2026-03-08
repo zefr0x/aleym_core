@@ -8,11 +8,19 @@ pub(super) use clear::ClearInterface;
 #[cfg(feature = "net_interface_tor")]
 pub(super) use tor::TorInterface;
 
+#[derive(Debug)]
+#[repr(i8)]
 pub enum Type {
+	#[cfg(any(test, not(any(feature = "net_interface_clear", feature = "net_interface_tor"))))]
+	TestPlaceholder = 0,
 	#[cfg(feature = "net_interface_clear")]
-	#[expect(unused)]
-	Clear,
+	Clear = 1,
 	#[cfg(feature = "net_interface_tor")]
-	#[expect(unused)]
-	Tor,
+	Tor = 2,
+}
+
+impl From<Type> for sea_orm::Value {
+	fn from(value: Type) -> Self {
+		sea_orm::Value::TinyInt(Some(value as i8))
+	}
 }
