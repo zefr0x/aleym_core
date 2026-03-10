@@ -34,7 +34,7 @@ impl tls::Transport for TorInterface {
 }
 
 impl TorInterface {
-	pub async fn new(
+	pub fn new(
 		tor_client: arti_client::TorClient<tor_rtcompat::PreferredRuntime>,
 		#[cfg(feature = "net_transport_tls")] tls: Arc<tokio_rustls::rustls::ClientConfig>,
 	) -> Self {

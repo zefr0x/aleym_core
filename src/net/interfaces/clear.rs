@@ -33,7 +33,7 @@ impl tls::Transport for ClearInterface {
 }
 
 impl ClearInterface {
-	pub async fn new(#[cfg(feature = "net_transport_tls")] tls: Arc<tokio_rustls::rustls::ClientConfig>) -> Self {
+	pub fn new(#[cfg(feature = "net_transport_tls")] tls: Arc<tokio_rustls::rustls::ClientConfig>) -> Self {
 		Self {
 			#[cfg(feature = "net_transport_tls")]
 			tls_config: tls,

@@ -75,28 +75,22 @@ impl Network {
 
 	/// Separate client should be created for each informant execution.
 	#[expect(unused)]
-	pub async fn new_client(&self, interface: InterfaceType) -> Client {
+	pub fn new_client(&self, interface: InterfaceType) -> Client {
 		// TODO: Expose client specific config overwrites.
 		match interface {
 			#[cfg(any(test, not(any(feature = "net_interface_clear", feature = "net_interface_tor"))))]
 			InterfaceType::TestPlaceholder => unimplemented!(),
 			#[cfg(feature = "net_interface_clear")]
-			InterfaceType::Clear => Client::Clear(
-				interfaces::ClearInterface::new(
-					#[cfg(feature = "net_transport_tls")]
-					Arc::clone(&self.tls_config),
-				)
-				.await,
-			),
-			#[cfg(feature = "net_interface_tor")]
-			InterfaceType::Tor => Client::Tor(Box::new(
-				interfaces::TorInterface::new(
-					self.tor_client.isolated_client(),
-					#[cfg(feature = "net_transport_tls")]
-					Arc::clone(&self.tls_config),
-				)
-				.await,
+			InterfaceType::Clear => Client::Clear(interfaces::ClearInterface::new(
+				#[cfg(feature = "net_transport_tls")]
+				Arc::clone(&self.tls_config),
 			)),
+			#[cfg(feature = "net_interface_tor")]
+			InterfaceType::Tor => Client::Tor(Box::new(interfaces::TorInterface::new(
+				self.tor_client.isolated_client(),
+				#[cfg(feature = "net_transport_tls")]
+				Arc::clone(&self.tls_config),
+			))),
 		}
 	}
 }
@@ -116,7 +110,7 @@ mod tests {
 
 		let network = Network::new().await.unwrap();
 
-		let client = network.new_client(InterfaceType::Clear).await;
+		let client = network.new_client(InterfaceType::Clear);
 
 		let target = hyper::Uri::from_static("https://check.torproject.org/api/ip");
 		let request = hyper::Request::builder()
@@ -154,7 +148,7 @@ mod tests {
 
 		let network = Network::new().await.unwrap();
 
-		let client = network.new_client(InterfaceType::Tor).await;
+		let client = network.new_client(InterfaceType::Tor);
 
 		let target = hyper::Uri::from_static("https://check.torproject.org/api/ip");
 		let request = hyper::Request::builder()

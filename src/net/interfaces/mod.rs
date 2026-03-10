@@ -8,7 +8,7 @@ pub(super) use clear::ClearInterface;
 #[cfg(feature = "net_interface_tor")]
 pub(super) use tor::TorInterface;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 #[repr(i8)]
 pub enum Type {
 	#[cfg(any(test, not(any(feature = "net_interface_clear", feature = "net_interface_tor"))))]

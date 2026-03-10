@@ -1,4 +1,4 @@
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 #[repr(i8)]
 pub enum Type {
 	// TODO: Restrict this only for tests with `#[cfg(test)]` when there are other variants
