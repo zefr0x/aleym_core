@@ -98,19 +98,18 @@ impl Network {
 #[cfg(test)]
 mod tests {
 	#[cfg(all(
-		feature = "net_interface_clear",
+		any(feature = "net_interface_clear", feature = "net_interface_tor"),
 		feature = "net_transport_tls",
 		feature = "net_protocol_http1"
 	))]
 	#[tokio::test]
 	#[tracing_test::traced_test]
-	async fn networking_clear_http1_tls() {
-		use super::{InterfaceType, Network};
+	async fn networking_http1_tls() {
 		use http_body_util::BodyExt;
 
-		let network = Network::new().await.unwrap();
+		use super::{InterfaceType, Network};
 
-		let client = network.new_client(InterfaceType::Clear);
+		let network = Network::new().await.unwrap();
 
 		let target = hyper::Uri::from_static("https://check.torproject.org/api/ip");
 		let request = hyper::Request::builder()
@@ -120,56 +119,39 @@ mod tests {
 			.body(http_body_util::Empty::<hyper::body::Bytes>::new())
 			.unwrap();
 
-		let resp = client.http_request(request, false).await.unwrap();
+		let mut tasks = tokio::task::JoinSet::new();
 
-		assert_eq!(resp.status().as_u16(), 200);
-		assert_eq!(resp.version(), hyper::Version::HTTP_11);
-		assert_eq!(
-			resp.headers().get("content-type"),
-			Some(&hyper::header::HeaderValue::from_static("application/json"))
-		);
+		for interface in [
+			#[cfg(feature = "net_interface_clear")]
+			InterfaceType::Clear,
+			#[cfg(feature = "net_interface_tor")]
+			InterfaceType::Tor,
+		] {
+			let client = network.new_client(interface);
 
-		let body_bytes = resp.collect().await.unwrap().to_bytes();
-		let body_str = std::str::from_utf8(&body_bytes).unwrap();
+			tasks.spawn({
+				let request = request.clone();
 
-		assert!(body_str.contains("\"IsTor\":false"));
-	}
+				async move {
+					let resp = client.http_request(request, false).await.unwrap();
 
-	#[cfg(all(
-		feature = "net_interface_tor",
-		feature = "net_transport_tls",
-		feature = "net_protocol_http1"
-	))]
-	#[tokio::test]
-	#[tracing_test::traced_test]
-	async fn networking_tor_http1_tls() {
-		use super::{InterfaceType, Network};
-		use http_body_util::BodyExt;
+					// Assert HTTP headers
+					assert_eq!(resp.status().as_u16(), 200);
+					assert_eq!(resp.version(), hyper::Version::HTTP_11);
+					assert_eq!(
+						resp.headers().get("content-type"),
+						Some(&hyper::header::HeaderValue::from_static("application/json"))
+					);
 
-		let network = Network::new().await.unwrap();
+					// Assert HTTP body
+					let body_bytes = resp.collect().await.unwrap().to_bytes();
+					let body_str = std::str::from_utf8(&body_bytes).unwrap();
 
-		let client = network.new_client(InterfaceType::Tor);
+					assert!(body_str.contains(&format!("\"IsTor\":{}", interface == InterfaceType::Tor)));
+				}
+			});
+		}
 
-		let target = hyper::Uri::from_static("https://check.torproject.org/api/ip");
-		let request = hyper::Request::builder()
-			.header(hyper::header::HOST, target.authority().unwrap().as_str())
-			.uri(&target)
-			.method(hyper::Method::GET)
-			.body(http_body_util::Empty::<hyper::body::Bytes>::new())
-			.unwrap();
-
-		let resp = client.http_request(request, false).await.unwrap();
-
-		assert_eq!(resp.status().as_u16(), 200);
-		assert_eq!(resp.version(), hyper::Version::HTTP_11);
-		assert_eq!(
-			resp.headers().get("content-type"),
-			Some(&hyper::header::HeaderValue::from_static("application/json"))
-		);
-
-		let body_bytes = resp.collect().await.unwrap().to_bytes();
-		let body_str = std::str::from_utf8(&body_bytes).unwrap();
-
-		assert!(body_str.contains("\"IsTor\":true"));
+		tasks.join_all().await;
 	}
 }
