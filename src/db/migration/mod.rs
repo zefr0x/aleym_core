@@ -8,7 +8,7 @@ mod m20260305_015253_create_news_storage;
 /// Database's `Migrator`.
 ///
 /// For comprehensive database migrations management.
-/// More capable than using [crate::StorageConnection::has_pending_migrations()] and [crate::StorageConnection::apply_migrations()].
+/// More capable than using [super::StorageConnection::has_pending_migrations()] and [super::StorageConnection::apply_migrations()].
 #[derive(Debug, Default)]
 #[non_exhaustive]
 pub struct Migrator;

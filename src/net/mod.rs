@@ -7,14 +7,14 @@ mod transports;
 #[cfg(feature = "net_transport_tls")]
 use std::sync::Arc;
 
-pub use client::Client;
+pub(crate) use client::Client;
 pub use error::NetworkError;
 pub use interfaces::Type as InterfaceType;
 
 /// Networking abstraction layer, handling multiple network transports.
 ///
 /// This must be the only interface to all network communications.
-pub struct Network {
+pub(crate) struct Network {
 	#[cfg(feature = "net_interface_tor")]
 	tor_client: arti_client::TorClient<tor_rtcompat::PreferredRuntime>,
 	#[cfg(feature = "net_transport_tls")]
@@ -23,7 +23,7 @@ pub struct Network {
 
 impl Network {
 	/// Initialize connections to different network transports.
-	pub async fn new() -> Result<Self, NetworkError> {
+	pub(crate) async fn new() -> Result<Self, NetworkError> {
 		tracing::trace!("initializing network connections");
 
 		#[cfg(feature = "net_transport_tls")]
@@ -75,7 +75,7 @@ impl Network {
 
 	/// Separate client should be created for each informant execution.
 	#[expect(unused)]
-	pub fn new_client(&self, interface: InterfaceType) -> Client {
+	pub(crate) fn new_client(&self, interface: InterfaceType) -> Client {
 		// TODO: Expose client specific config overwrites.
 		match interface {
 			#[cfg(any(test, not(any(feature = "net_interface_clear", feature = "net_interface_tor"))))]

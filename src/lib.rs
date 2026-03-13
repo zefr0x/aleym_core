@@ -10,15 +10,12 @@
 //! * `net_protocol_http1` (default) -- HTTP/1.1 support
 //! * `net_protocol_http2` (default) -- HTTP/2 support
 
-mod db;
+pub mod db;
 mod error;
-mod inform;
-mod net;
+pub mod inform;
+pub mod net;
 
-pub use db::*;
 pub use error::Error;
-pub use inform::Type as InformantType;
-pub use net::InterfaceType as NetworkInterfaceType;
 
 pub struct Representative {
 	// TODO: Consider if this should be exposed directly or not.
