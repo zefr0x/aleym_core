@@ -15,7 +15,7 @@ mod error;
 mod inform;
 mod net;
 
-pub use db::{Migrator as DbMigrator, StorageConnection, StorageError, uuid};
+pub use db::*;
 pub use error::Error;
 pub use inform::Type as InformantType;
 pub use net::InterfaceType as NetworkInterfaceType;

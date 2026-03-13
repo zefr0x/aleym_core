@@ -2,6 +2,7 @@
 
 pub mod prelude;
 
+pub mod news;
 pub mod source;
 pub mod source_category;
 pub mod source_directory;

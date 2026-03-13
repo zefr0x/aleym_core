@@ -179,10 +179,12 @@ sea-orm = { version = "2.0.0-rc.32", default-features = false, features = [
 	"sqlx-sqlite",
 	"runtime-tokio",
 	"macros",
+	"with-time",
 	"with-uuid",
 ] }
 sea-orm-migration = { workspace = true }
 thiserror = "2"
+time = "0.3.47"
 tokio = { workspace = true }
 # TODO: Reconsider using `aws-lc-rs` rather than `ring` when the license issue get resolved.
 tokio-rustls = { version = "0.26.4", default-features = false, features = [

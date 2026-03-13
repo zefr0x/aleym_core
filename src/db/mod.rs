@@ -1,14 +1,17 @@
 mod entities;
 mod error;
 mod impl_migration;
+mod impl_news_storage;
 mod impl_source_storage;
 mod migration;
 
 use sea_orm::{Database, DatabaseConnection};
+pub use time;
+pub use uuid;
 
 pub use error::StorageError;
+pub use impl_news_storage::*;
 pub use migration::Migrator;
-pub use uuid;
 
 #[derive(Clone, Debug)]
 pub struct StorageConnection {
