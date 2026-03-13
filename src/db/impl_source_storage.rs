@@ -84,11 +84,74 @@ impl StorageConnection {
 	pub async fn get_directories_by_parent(
 		&self,
 		parent_id: Uuid,
+		recursive: bool,
 	) -> Result<Vec<source_directory::Model>, StorageError> {
-		Ok(SourceDirectory::find()
-			.filter(source_directory::Column::ParentDirectory.eq(parent_id))
-			.all(&self.connection)
-			.await?)
+		use sea_orm::{
+			FromQueryResult,
+			sea_query::{
+				ColumnRef, CommonTableExpression, Cycle, Expr, ExprTrait, JoinType, SelectStatement, TableName,
+				TableRef, UnionType, WithClause,
+			},
+		};
+
+		if recursive {
+			let traversal = TableName::from("traversal");
+
+			let query = SelectStatement::new()
+				// Final select
+				.column(ColumnRef::Asterisk(None))
+				.from(traversal.clone())
+				.to_owned()
+				// WITH clause
+				.with(
+					WithClause::new()
+						.recursive(true)
+						.cte(
+							CommonTableExpression::new()
+								.query(
+									SelectStatement::new()
+										// Base statement
+										.column(ColumnRef::Asterisk(None))
+										.from(SourceDirectory)
+										.and_where(Expr::col(source_directory::Column::Id).eq(parent_id))
+										// Referencing
+										.union(
+											UnionType::All,
+											SelectStatement::new()
+												.column(ColumnRef::Asterisk(Some(TableName::from("d"))))
+												.from(TableRef::Table(SourceDirectory.into(), Some("d".into())))
+												.join(
+													JoinType::InnerJoin,
+													TableRef::Table(traversal.clone(), Some("r".into())),
+													Expr::col(("d", source_directory::Column::ParentDirectory))
+														.equals(("r", source_directory::Column::Id)),
+												)
+												.to_owned(),
+										)
+										.to_owned(),
+								)
+								.table_name(traversal.1)
+								.to_owned(),
+						)
+						.cycle(Cycle::new_from_expr_set_using(
+							Expr::column(source_directory::Column::Id),
+							"looped",
+							"traversal_path",
+						))
+						.to_owned(),
+				);
+
+			Ok(
+				source_directory::Model::find_by_statement(self.connection.get_database_backend().build(&query))
+					.all(&self.connection)
+					.await?,
+			)
+		} else {
+			Ok(SourceDirectory::find()
+				.filter(source_directory::Column::ParentDirectory.eq(parent_id))
+				.all(&self.connection)
+				.await?)
+		}
 	}
 
 	/// Returns a category identifier.
@@ -410,7 +473,7 @@ mod tests {
 			.expect("Failed to change root source directory's name");
 
 		assert!(
-			con.get_directories_by_parent(root_directory1)
+			con.get_directories_by_parent(root_directory1, false)
 				.await
 				.expect("Failed to get first root direcotry's childs")
 				.is_empty()
@@ -418,12 +481,13 @@ mod tests {
 
 		let grand_childs = con
 			.get_directories_by_parent(
-				con.get_directories_by_parent(root_directory2)
+				con.get_directories_by_parent(root_directory2, false)
 					.await
 					.expect("Failed to get root direcotry's childs")
 					.first()
 					.unwrap()
 					.id,
+				false,
 			)
 			.await
 			.expect("Failed to get childs of a child direcotry");
