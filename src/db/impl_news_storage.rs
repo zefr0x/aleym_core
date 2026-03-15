@@ -45,7 +45,11 @@ impl StorageConnection {
 		let result = match filter {
 			NewsFilter::Source(source) => {
 				News::find()
-					.filter(news::Column::Source.eq(source))
+					.filter(
+						news::Column::Source
+							.eq(source)
+							.and(news::Column::IsLatestVersion.eq(true)),
+					)
 					.order_by(news::Column::FirstFetchedAt, sort_order.clone())
 					.order_by(news::Column::PublishedAt, sort_order.clone())
 					.order_by(news::Column::UpdatedAt, sort_order.clone())
@@ -58,7 +62,7 @@ impl StorageConnection {
 					.await?
 			}
 			NewsFilter::DirectoryOrCategories(filter) => {
-				let mut condition = Condition::all();
+				let mut condition = Condition::all().add(news::Column::IsLatestVersion.eq(true));
 
 				if !filter.categories.is_empty() {
 					condition = condition.add(source_category::Column::Id.is_in(filter.categories));
