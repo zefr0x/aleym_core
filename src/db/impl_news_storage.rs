@@ -1,5 +1,5 @@
 pub use sea_orm::Order as SortOrder;
-use sea_orm::{ActiveValue::Set, Condition, QueryOrder, QuerySelect, prelude::*};
+use sea_orm::{ActiveValue::Set, Condition, ExprTrait, QueryOrder, QuerySelect, prelude::*};
 use time::OffsetDateTime;
 
 use super::{
@@ -29,7 +29,211 @@ pub enum NewsFilter {
 	DirectoryOrCategories(DirectoryOrCategoriesBasedNewsFilter),
 }
 
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+pub(crate) struct InputNews {
+	pub(crate) source_provided_id: Option<String>,
+	pub(crate) uri: Option<String>,
+	pub(crate) title: String,
+	pub(crate) summary: Option<String>,
+	pub(crate) content: Option<String>,
+	pub(crate) published_at: Option<OffsetDateTime>,
+	pub(crate) updated_at: Option<OffsetDateTime>,
+}
+
+#[derive(Debug, Clone)]
+pub struct AddingNewsOutput {
+	/// Newly added news items or new versions of existing ones.
+	pub new: Vec<Uuid>,
+	/// Were seen again in the feed without any change or there is a newer version of them identified in `new`.
+	pub touched: Vec<Uuid>,
+}
+
 impl StorageConnection {
+	#[expect(unused)]
+	#[tracing::instrument(skip(self), level = tracing::Level::DEBUG)]
+	pub(crate) async fn add_news(&self, source: Uuid, items: Vec<InputNews>) -> Result<AddingNewsOutput, StorageError> {
+		use sea_orm::TransactionTrait as _;
+
+		let now = OffsetDateTime::now_utc();
+
+		// Group items by to detect multiple versions in the same batch
+		let mut grouped_items = std::collections::HashMap::new();
+
+		for item in items {
+			grouped_items
+				.entry(item.source_provided_id.clone())
+				// Avoiding the need to handle duplicate items
+				.or_insert_with(std::collections::HashSet::new)
+				.insert(item);
+		}
+
+		let mut models_to_insert = vec![];
+		let mut previous_to_update_latest = vec![];
+		let mut existing_to_update_last_fetch = vec![];
+
+		let mut output = AddingNewsOutput {
+			new: Vec::new(),
+			touched: Vec::new(),
+		};
+
+		for (key_source_provided_id, versions) in grouped_items {
+			// Skip versioning items when there is no `source_provided_id`
+			if key_source_provided_id.is_none() {
+				for item in versions {
+					// PERF: Optimize checking for existing news to be in a single query.
+					// Check if it previously exist
+					if let Some(exists) = News::find()
+						.filter(
+							Condition::all()
+								.add(news::Column::Source.eq(source))
+								.add(news::Column::SourceProvidedId.is_null())
+								.add(news::Column::IsLatestVersion.eq(true))
+								.add(news::Column::PreviousVersion.is_null())
+								.add(news::Column::Uri.eq(item.uri.clone()))
+								.add(news::Column::Title.eq(item.title.clone()))
+								.add(news::Column::Summary.eq(item.summary.clone()))
+								.add(news::Column::Content.eq(item.content.clone()))
+								.add(news::Column::PublishedAt.eq(item.published_at))
+								.add(news::Column::UpdatedAt.eq(item.updated_at)),
+						)
+						.one(&self.connection)
+						.await?
+					{
+						existing_to_update_last_fetch.push(exists.id);
+						output.touched.push(exists.id);
+
+						tracing::debug!(news.id = ?exists.id, "touching existing news");
+					} else {
+						let id = Uuid::new_v4();
+
+						models_to_insert.push(news::ActiveModel {
+							id: Set(id),
+							source: Set(source),
+							source_provided_id: Set(item.source_provided_id),
+							is_latest_version: Set(true),
+							previous_version: Set(None),
+							uri: Set(item.uri),
+							title: Set(item.title),
+							summary: Set(item.summary),
+							content: Set(item.content),
+							published_at: Set(item.published_at),
+							updated_at: Set(item.updated_at),
+							first_fetched_at: Set(now),
+							last_fetched_at: Set(now),
+							is_read: Set(false),
+						});
+						output.new.push(id);
+
+						tracing::debug!(news.id = ?id, "adding new news");
+					}
+				}
+			} else {
+				let mut versions = versions.into_iter().collect::<Vec<InputNews>>();
+				// Sort versions in ascending order to process oldest first
+				versions.sort_by(|a, b| (a.updated_at.or(a.published_at)).cmp(&b.updated_at.or(b.published_at)));
+
+				// NOTE: If old items got added when newer ones exists, they will be considered as new versions.
+
+				// PERF: Optimize checking for previous versions of news to be in a single query.
+				let previous = News::find()
+					.filter(
+						Condition::all()
+							.add(news::Column::Source.eq(source))
+							.add(news::Column::SourceProvidedId.eq(key_source_provided_id))
+							.add(news::Column::IsLatestVersion.eq(true)),
+					)
+					.one(&self.connection)
+					.await?;
+
+				// If news hasn't change update `last_fetched_at`
+				if let Some(previous) = &previous
+					&& previous.published_at == versions[0].published_at
+					&& previous.updated_at == versions[0].updated_at
+					&& previous.uri == versions[0].uri
+					&& previous.title == versions[0].title
+					&& previous.summary == versions[0].summary
+					&& previous.content == versions[0].content
+				{
+					existing_to_update_last_fetch.push(previous.id);
+					output.touched.push(previous.id);
+
+					versions.remove(0);
+
+					tracing::debug!(news.id = ?previous.id, "touching existing news");
+				}
+
+				let mut previous_id = previous.as_ref().map(|n| n.id);
+
+				let items_count = versions.len();
+
+				for (index, item) in versions.into_iter().enumerate() {
+					let id = Uuid::new_v4();
+
+					let is_latest = index == items_count - 1;
+
+					models_to_insert.push(news::ActiveModel {
+						id: Set(id),
+						source: Set(source),
+						source_provided_id: Set(item.source_provided_id),
+						is_latest_version: Set(is_latest),
+						previous_version: Set(previous_id),
+						uri: Set(item.uri),
+						title: Set(item.title),
+						summary: Set(item.summary),
+						content: Set(item.content),
+						published_at: Set(item.published_at),
+						updated_at: Set(item.updated_at),
+						first_fetched_at: Set(now),
+						last_fetched_at: Set(now),
+						is_read: Set(false),
+					});
+					output.new.push(id);
+
+					if let Some(previous_id) = previous_id.take()
+						&& !output.new.contains(&previous_id)
+					{
+						previous_to_update_latest.push(previous_id);
+						output.touched.push(previous_id);
+					}
+
+					if !is_latest {
+						previous_id = Some(id);
+					}
+
+					tracing::debug!(news.id = ?id, is_latest, "adding new versioned news");
+				}
+			}
+		}
+
+		self.connection
+			.transaction(|transaction| {
+				Box::pin(async move {
+					if !existing_to_update_last_fetch.is_empty() {
+						News::update_many()
+							.col_expr(news::Column::LastFetchedAt, Expr::value(now))
+							.filter(news::Column::Id.is_in(existing_to_update_last_fetch))
+							.exec(transaction)
+							.await?;
+					}
+
+					News::insert_many(models_to_insert).exec(transaction).await?;
+
+					if !previous_to_update_latest.is_empty() {
+						News::update_many()
+							.col_expr(news::Column::IsLatestVersion, Expr::value(false))
+							.filter(news::Column::Id.is_in(previous_to_update_latest))
+							.exec(transaction)
+							.await?;
+					}
+
+					Ok(())
+				})
+			})
+			.await?;
+
+		Ok(output)
+	}
+
 	/// Cursor is based on `FirstFetchedAt` value
 	///
 	/// Use [`TIME_MAX`] and [`TIME_MIN`] with a limit to get the first page, than use the result to progress further.
@@ -53,6 +257,7 @@ impl StorageConnection {
 					.order_by(news::Column::FirstFetchedAt, sort_order.clone())
 					.order_by(news::Column::PublishedAt, sort_order.clone())
 					.order_by(news::Column::UpdatedAt, sort_order.clone())
+					// Ensure that we have a consistent order when there is nothing for fallback sorting
 					.order_by(news::Column::Id, sort_order)
 					.limit(limit)
 					.cursor_by(news::Column::FirstFetchedAt)
