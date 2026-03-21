@@ -6,7 +6,7 @@ impl Client {
 	///
 	/// `http2_prior_knowledge` is useful when we have prior knowledge that the server supports HTTP/2 Cleartext (h2c),
 	/// leading to the use of HTTP/2 rather than HTTP/1.1 when we are not doing a TLS handshake for unencrypted connection.
-	#[expect(unused)]
+	#[allow(unused)]
 	pub async fn http_request<T>(
 		&self,
 		request: hyper::Request<T>,

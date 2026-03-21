@@ -1,20 +1,33 @@
 mod error;
+#[cfg(feature = "informant_feedrs")]
+pub mod feedrs;
+#[cfg(feature = "informant_feedrs")]
+mod utils;
 
 pub use error::InformantError;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 #[repr(i8)]
 pub(crate) enum Type {
-	// TODO: Restrict this only for tests with `#[cfg(test)]` when there are other variants
+	#[cfg(any(test, not(feature = "_informant")))]
 	TestPlaceholder = 0,
+	#[cfg(feature = "informant_feedrs")]
+	FeedRs = 1,
 }
 
 /// # Informant Parameters
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub enum Parameters {
 	/// # Placeholder for Testing
-	// TODO: Restrict this only for tests with `#[cfg(test)]` when there are other variants
+	#[cfg(any(test, not(feature = "_informant")))]
 	TestPlaceholder,
+	/// # FeedRs
+	/// RSS, ATOM, or JSON standard feed.
+	#[cfg(feature = "informant_feedrs")]
+	FeedRs(
+		/// # Parameters
+		feedrs::Parameters,
+	),
 }
 
 impl TryFrom<i8> for Type {
@@ -22,7 +35,10 @@ impl TryFrom<i8> for Type {
 
 	fn try_from(value: i8) -> Result<Self, Self::Error> {
 		match value {
+			#[cfg(any(test, not(feature = "_informant")))]
 			0 => Ok(Self::TestPlaceholder),
+			#[cfg(feature = "informant_feedrs")]
+			1 => Ok(Self::FeedRs),
 			value => Err(InformantError::UnsupportedInformatIdentifier(value)),
 		}
 	}
@@ -31,7 +47,10 @@ impl TryFrom<i8> for Type {
 impl From<&Parameters> for Type {
 	fn from(value: &Parameters) -> Self {
 		match value {
+			#[cfg(any(test, not(feature = "_informant")))]
 			Parameters::TestPlaceholder => Type::TestPlaceholder,
+			#[cfg(feature = "informant_feedrs")]
+			Parameters::FeedRs(_) => Type::FeedRs,
 		}
 	}
 }
