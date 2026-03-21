@@ -9,4 +9,6 @@ pub enum StorageError {
 	IoError(#[from] std::io::Error),
 	#[error("Path contains non-UTF-8 characters")]
 	InvalidUtf8Path,
+	#[error("Supplied JSON value doesn't match the required structure: {0}")]
+	InvalidJsonParameters(#[from] serde_json::Error),
 }

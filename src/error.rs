@@ -1,4 +1,4 @@
-use crate::{db, net};
+use crate::{db, inform, net};
 
 #[expect(missing_docs, reason = "Variants' names and error messages are descriptive")]
 #[derive(thiserror::Error, Debug)]
@@ -8,4 +8,6 @@ pub enum Error {
 	StorageError(#[from] db::StorageError),
 	#[error("Network error occurred: {0}")]
 	NetworkError(#[from] net::NetworkError),
+	#[error("Informant error occurred: {0}")]
+	InformantError(#[from] inform::InformantError),
 }

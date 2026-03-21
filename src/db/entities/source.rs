@@ -9,7 +9,7 @@ pub struct Model {
 	pub id: Uuid,
 	pub parent_directory: Uuid,
 	pub informant: i8,
-	pub informant_parameters: Option<Json>,
+	pub informant_parameters: Json,
 	pub network: i8,
 	pub network_parameters: Option<Json>,
 	#[sea_orm(column_type = "Text")]

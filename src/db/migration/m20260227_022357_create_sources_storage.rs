@@ -112,7 +112,7 @@ impl MigrationTrait for Migration {
 					.col(uuid(Source::Id).primary_key())
 					.col(uuid(Source::ParentDirectory))
 					.col(tiny_integer(Source::Informant))
-					.col(json(Source::InformantParameters).null())
+					.col(json(Source::InformantParameters))
 					.col(tiny_integer(Source::Network))
 					.col(json(Source::NetworkParameters).null())
 					.col(text(Source::Name))

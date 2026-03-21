@@ -7,7 +7,7 @@ use super::{
 	StorageConnection, StorageError,
 	entities::{prelude::*, source, source_category, source_directory, source_to_category_link},
 };
-use crate::{inform::Type as InformantType, net::InterfaceType as NetworkInterfaceType};
+use crate::{inform, net};
 
 impl StorageConnection {
 	/// Returns a directory identifier.
@@ -225,19 +225,23 @@ impl StorageConnection {
 	pub async fn add_source(
 		&self,
 		parent_directory: Uuid,
-		informant: InformantType,
-		network: NetworkInterfaceType,
+		informant: inform::Parameters,
+		network: net::InterfaceType,
 		name: String,
 		description: Option<String>,
 		is_enabled: bool,
 	) -> Result<Uuid, StorageError> {
 		let source_id = Uuid::new_v4();
 
+		let informant_parameters = serde_json::to_value(&informant)?;
+		let informant = inform::Type::from(&informant);
+
 		let source = source::ActiveModel {
 			id: Set(source_id),
 			parent_directory: Set(parent_directory),
-			// TODO: Handle both informant and network parameters when implemented.
 			informant: Set(informant as i8),
+			informant_parameters: Set(informant_parameters),
+			// TODO: Handle network parameters when implemented.
 			network: Set(network as i8),
 			name: Set(name),
 			description: Set(description),
@@ -257,7 +261,7 @@ impl StorageConnection {
 		&self,
 		id: Uuid,
 		parent_directory: ActiveValue<Uuid>,
-		network: ActiveValue<NetworkInterfaceType>,
+		network: ActiveValue<net::InterfaceType>,
 		name: ActiveValue<String>,
 		description: ActiveValue<Option<String>>,
 		is_enabled: ActiveValue<bool>,
@@ -420,8 +424,8 @@ mod tests {
 	pub async fn setup_sources(con: &StorageConnection, directory1: Uuid, directory2: Uuid) {
 		con.add_source(
 			directory1,
-			super::InformantType::TestPlaceholder,
-			super::NetworkInterfaceType::TestPlaceholder,
+			super::inform::Parameters::TestPlaceholder,
+			super::net::InterfaceType::TestPlaceholder,
 			"Example 1".to_owned(),
 			Some("Example description".to_owned()),
 			true,
@@ -431,8 +435,8 @@ mod tests {
 
 		con.add_source(
 			directory1,
-			super::InformantType::TestPlaceholder,
-			super::NetworkInterfaceType::TestPlaceholder,
+			super::inform::Parameters::TestPlaceholder,
+			super::net::InterfaceType::TestPlaceholder,
 			"Example 2".to_owned(),
 			None,
 			false,
@@ -442,8 +446,8 @@ mod tests {
 
 		con.add_source(
 			directory2,
-			super::InformantType::TestPlaceholder,
-			super::NetworkInterfaceType::TestPlaceholder,
+			super::inform::Parameters::TestPlaceholder,
+			super::net::InterfaceType::TestPlaceholder,
 			"Example 3".to_owned(),
 			None,
 			true,
