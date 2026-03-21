@@ -1,7 +1,7 @@
 mod client;
 mod error;
 mod interfaces;
-mod protocols;
+pub(crate) mod protocols;
 mod transports;
 
 #[cfg(feature = "net_transport_tls")]

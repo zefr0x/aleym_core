@@ -1,3 +1,7 @@
+#[allow(unused)]
+pub(crate) use http_body_util as body_util;
+#[allow(unused)]
+pub(crate) use hyper::{Method, Request, Response, Uri, body, header, http::uri::InvalidUri};
 use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::net::NetworkError;
@@ -7,7 +11,7 @@ use crate::net::transports::tls::AlpnProtocols;
 #[cfg(feature = "net_protocol_http2")]
 #[tracing::instrument(level = tracing::Level::DEBUG)]
 async fn send_http2<T, B>(
-	mut request: hyper::Request<T>,
+	mut request: Request<T>,
 	io: hyper_util::rt::TokioIo<B>,
 ) -> Result<hyper::Response<hyper::body::Incoming>, NetworkError>
 where
@@ -40,7 +44,7 @@ where
 #[cfg(feature = "net_protocol_http1")]
 #[tracing::instrument(level = tracing::Level::DEBUG)]
 async fn send_http1<T, B>(
-	mut request: hyper::Request<T>,
+	mut request: Request<T>,
 	io: hyper_util::rt::TokioIo<B>,
 ) -> Result<hyper::Response<hyper::body::Incoming>, NetworkError>
 where
@@ -71,10 +75,10 @@ where
 	any(feature = "net_protocol_http1", feature = "net_protocol_http2"),
 	feature = "net_transport_tls"
 ))]
-pub trait Https: super::super::transports::tls::Transport {
+pub(in super::super) trait Https: super::super::transports::tls::Transport {
 	async fn send_request<T>(
 		&self,
-		request: hyper::Request<T>,
+		request: Request<T>,
 		host: String,
 		port: u16,
 	) -> Result<hyper::Response<hyper::body::Incoming>, NetworkError>
@@ -98,10 +102,10 @@ pub trait Https: super::super::transports::tls::Transport {
 }
 
 #[cfg(any(feature = "net_protocol_http1", feature = "net_protocol_http2"))]
-pub trait Http: super::super::transports::tcp::Transport {
+pub(in super::super) trait Http: super::super::transports::tcp::Transport {
 	async fn send_request<T>(
 		&self,
-		request: hyper::Request<T>,
+		request: Request<T>,
 		host: String,
 		port: u16,
 		#[cfg(all(feature = "net_protocol_http2", feature = "net_protocol_http1"))] http2_prior_knowledge: bool,
@@ -147,10 +151,10 @@ pub trait Http: super::super::transports::tcp::Transport {
 	feature = "net_transport_tls",
 	any(feature = "net_protocol_http1", feature = "net_protocol_http2")
 ))]
-pub trait HttpAuto: Http + Https {
+pub(in super::super) trait HttpAuto: Http + Https {
 	async fn send_request<T>(
 		&self,
-		request: hyper::Request<T>,
+		request: Request<T>,
 		#[cfg(all(feature = "net_protocol_http2", feature = "net_protocol_http1"))] http2_prior_knowledge: bool,
 	) -> Result<hyper::Response<hyper::body::Incoming>, NetworkError>
 	where
@@ -204,10 +208,10 @@ impl<T: Http + Https> HttpAuto for T {}
 	not(feature = "net_transport_tls"),
 	any(feature = "net_protocol_http1", feature = "net_protocol_http2")
 ))]
-pub trait HttpAuto: Http {
+pub(in super::super) trait HttpAuto: Http {
 	async fn send_request<T>(
 		&self,
-		request: hyper::Request<T>,
+		request: Request<T>,
 		#[cfg(all(feature = "net_protocol_http2", feature = "net_protocol_http1"))] http2_prior_knowledge: bool,
 	) -> Result<hyper::Response<hyper::body::Incoming>, NetworkError>
 	where
