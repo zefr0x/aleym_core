@@ -1,7 +1,7 @@
-use aleym_core::DbMigrator;
+use aleym_core::db::Migrator;
 use sea_orm_migration::prelude::*;
 
 #[tokio::main]
 async fn main() {
-	cli::run_cli(DbMigrator::default()).await;
+	cli::run_cli(Migrator::default()).await;
 }
