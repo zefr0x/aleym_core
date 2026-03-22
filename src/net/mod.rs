@@ -74,7 +74,7 @@ impl Network {
 	}
 
 	/// Separate client should be created for each informant execution.
-	#[expect(unused)]
+	#[allow(unused)]
 	pub(crate) fn new_client(&self, interface: InterfaceType) -> Client {
 		// TODO: Expose client specific config overwrites.
 		match interface {

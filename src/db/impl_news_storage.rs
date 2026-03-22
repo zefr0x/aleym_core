@@ -29,6 +29,7 @@ pub enum NewsFilter {
 	DirectoryOrCategories(DirectoryOrCategoriesBasedNewsFilter),
 }
 
+#[cfg(feature = "_informant")]
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub(crate) struct InputNews {
 	pub(crate) source_provided_id: Option<String>,
@@ -49,7 +50,7 @@ pub struct AddingNewsOutput {
 }
 
 impl StorageConnection {
-	#[expect(unused)]
+	#[cfg(feature = "_informant")]
 	#[tracing::instrument(skip(self), level = tracing::Level::DEBUG)]
 	pub(crate) async fn add_news(&self, source: Uuid, items: Vec<InputNews>) -> Result<AddingNewsOutput, StorageError> {
 		use sea_orm::TransactionTrait as _;

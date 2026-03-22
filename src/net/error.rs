@@ -25,4 +25,6 @@ pub enum NetworkError {
 	#[cfg(any(feature = "net_protocol_http1", feature = "net_protocol_http2"))]
 	#[error("Request URI scheme is not supported")]
 	UnsupportedProtocolScheme,
+	#[error("Network interface with identifier `{0}` is not available")]
+	UnsupportedNetworkInterfaceIdentifier(i8),
 }

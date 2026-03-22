@@ -55,7 +55,7 @@ impl From<&Parameters> for Type {
 	}
 }
 
-#[expect(unused)]
+#[cfg(feature = "_informant")]
 pub(crate) trait InformantTrait {
 	/// New informant interface should be created for each fetching operation.
 	fn new(network_client: crate::net::Client) -> Self;

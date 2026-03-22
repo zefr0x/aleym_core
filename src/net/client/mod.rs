@@ -1,6 +1,7 @@
 #[cfg(any(feature = "net_protocol_http1", feature = "net_protocol_http2"))]
 mod impl_http;
 
+#[allow(unused)]
 #[non_exhaustive]
 pub enum Client {
 	#[cfg(feature = "net_interface_clear")]

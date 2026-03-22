@@ -13,6 +13,7 @@
 
 pub mod db;
 mod error;
+mod impl_scheduler;
 pub mod inform;
 pub mod net;
 
@@ -21,7 +22,7 @@ pub use error::Error;
 pub struct Representative {
 	// TODO: Consider if this should be exposed directly or not.
 	pub storage: db::StorageConnection,
-	#[expect(unused)]
+	#[allow(unused)]
 	network: net::Network,
 }
 

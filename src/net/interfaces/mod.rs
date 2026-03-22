@@ -8,6 +8,8 @@ pub(super) use clear::ClearInterface;
 #[cfg(feature = "net_interface_tor")]
 pub(super) use tor::TorInterface;
 
+use crate::net::NetworkError;
+
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 #[repr(i8)]
 pub enum Type {
@@ -17,6 +19,22 @@ pub enum Type {
 	Clear = 1,
 	#[cfg(feature = "net_interface_tor")]
 	Tor = 2,
+}
+
+impl TryFrom<i8> for Type {
+	type Error = NetworkError;
+
+	fn try_from(value: i8) -> Result<Self, Self::Error> {
+		match value {
+			#[cfg(any(test, not(any(feature = "net_interface_clear", feature = "net_interface_tor"))))]
+			0 => Ok(Self::TestPlaceholder),
+			#[cfg(feature = "net_interface_clear")]
+			1 => Ok(Self::Clear),
+			#[cfg(feature = "net_interface_tor")]
+			2 => Ok(Self::Tor),
+			value => Err(NetworkError::UnsupportedNetworkInterfaceIdentifier(value)),
+		}
+	}
 }
 
 impl From<Type> for sea_orm::Value {
