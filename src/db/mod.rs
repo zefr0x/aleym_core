@@ -5,6 +5,7 @@ mod impl_news_storage;
 mod impl_source_storage;
 mod migration;
 
+pub use sea_orm::ActiveValue;
 use sea_orm::{Database, DatabaseConnection};
 pub use time;
 pub use uuid;
