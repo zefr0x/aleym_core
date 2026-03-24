@@ -17,21 +17,18 @@ impl super::Representative {
 	async fn trigger_informant(
 		&self,
 		network: super::net::InterfaceType,
-		informant: inform::Type,
-		informant_parameters: sea_orm::JsonValue,
+		informant_parameters: inform::Parameters,
 	) -> Result<Vec<InputNews>, InformantError> {
 		#[cfg(feature = "informant_feedrs")]
 		let network = self.network.new_client(network);
 
-		match informant {
+		match informant_parameters {
 			#[cfg(any(test, not(feature = "_informant")))]
-			inform::Type::TestPlaceholder => {
+			inform::Parameters::TestPlaceholder => {
 				unimplemented!()
 			}
 			#[cfg(feature = "informant_feedrs")]
-			inform::Type::FeedRs => Ok(inform::feedrs::Informant::new(network)
-				.execute(informant_parameters)
-				.await?),
+			inform::Parameters::FeedRs(parameters) => Ok(inform::feedrs::Informant::new(network).execute(parameters).await?),
 		}
 	}
 
@@ -43,8 +40,8 @@ impl super::Representative {
 		let items = self
 			.trigger_informant(
 				super::net::InterfaceType::try_from(source.network)?,
-				inform::Type::try_from(source.informant)?,
-				source.informant_parameters,
+				serde_json::from_value::<inform::Parameters>(source.informant_parameters)
+					.map_err(inform::InformantError::from)?,
 			)
 			.await?;
 
@@ -68,8 +65,8 @@ impl super::Representative {
 					let items = self
 						.trigger_informant(
 							super::net::InterfaceType::try_from(source.network)?,
-							inform::Type::try_from(source.informant)?,
-							source.informant_parameters,
+							serde_json::from_value::<inform::Parameters>(source.informant_parameters)
+								.map_err(inform::InformantError::from)?,
 						)
 						.await;
 

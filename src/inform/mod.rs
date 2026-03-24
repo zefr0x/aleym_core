@@ -57,8 +57,10 @@ impl From<&Parameters> for Type {
 
 #[cfg(feature = "_informant")]
 pub(crate) trait InformantTrait {
+	type Parameters;
+
 	/// New informant interface should be created for each fetching operation.
 	fn new(network_client: crate::net::Client) -> Self;
 
-	async fn execute(self, parameters: sea_orm::JsonValue) -> Result<Vec<crate::db::InputNews>, InformantError>;
+	async fn execute(self, parameters: Self::Parameters) -> Result<Vec<crate::db::InputNews>, InformantError>;
 }

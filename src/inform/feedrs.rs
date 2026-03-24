@@ -71,6 +71,8 @@ impl Informant {
 }
 
 impl super::InformantTrait for Informant {
+	type Parameters = Parameters;
+
 	fn new(network_client: net::Client) -> Self {
 		Self {
 			network: network_client,
@@ -78,9 +80,7 @@ impl super::InformantTrait for Informant {
 	}
 
 	#[tracing::instrument(skip(self), level = tracing::Level::DEBUG)]
-	async fn execute(self, parameters: sea_orm::JsonValue) -> Result<Vec<crate::db::InputNews>, InformantError> {
-		let parameters = serde_json::from_value::<Parameters>(parameters)?;
-
+	async fn execute(self, parameters: Self::Parameters) -> Result<Vec<crate::db::InputNews>, InformantError> {
 		let response_bytes = self
 			.fetch(http::Uri::from_str(&parameters.feed_url)?)
 			.await?
