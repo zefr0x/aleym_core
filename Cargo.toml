@@ -12,6 +12,9 @@ license = "AGPL-3.0-only"
 keywords = ["news", "aggregation", "knowledge", "rss", "feed"]
 exclude = [".github", ".gitignore", ".pre-commit-config.yaml", "ARCHITECTURE.md", "CONTRIBUTING.md", "justfile"]
 
+[package.metadata.docs.rs]
+all-features = true
+
 [workspace]
 members = [".", "tools/db_manager"]
 
