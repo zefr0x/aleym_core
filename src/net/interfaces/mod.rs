@@ -10,13 +10,19 @@ pub(super) use tor::TorInterface;
 
 use crate::net::NetworkError;
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+/// # Network Interface Type
+#[derive(Debug, PartialEq, Eq, Clone, Copy, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[repr(i8)]
 pub enum Type {
+	/// # Placeholder for Testing
 	#[cfg(any(test, not(any(feature = "net_interface_clear", feature = "net_interface_tor"))))]
 	TestPlaceholder = 0,
+	/// # Clear (Clearnet)
+	/// Standard internet interface.
 	#[cfg(feature = "net_interface_clear")]
 	Clear = 1,
+	/// # Tor (Onion)
+	/// Anonymous-routing interface using the Tor network.
 	#[cfg(feature = "net_interface_tor")]
 	Tor = 2,
 }
