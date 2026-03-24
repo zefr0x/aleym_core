@@ -193,7 +193,7 @@ pub(in super::super) trait HttpAuto: Http + Https {
 				)
 				.await
 			}
-			_ => Err(NetworkError::UnsupportedProtocolScheme),
+			scheme => Err(NetworkError::UnsupportedProtocolScheme(scheme.to_owned())),
 		}
 	}
 }
@@ -241,7 +241,7 @@ pub(in super::super) trait HttpAuto: Http {
 				)
 				.await
 			}
-			_ => Err(NetworkError::UnsupportedProtocolScheme),
+			scheme => Err(NetworkError::UnsupportedProtocolScheme(scheme.to_owned())),
 		}
 	}
 }
