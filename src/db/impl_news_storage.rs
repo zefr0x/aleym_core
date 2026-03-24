@@ -315,6 +315,14 @@ impl StorageConnection {
 		Ok(result)
 	}
 
+	#[tracing::instrument(skip(self), level = tracing::Level::DEBUG)]
+	pub async fn get_news(&self, id: Uuid) -> Result<news::Model, StorageError> {
+		Ok(News::find_by_id(id)
+			.one(&self.connection)
+			.await?
+			.ok_or(DbErr::RecordNotFound(format!("Expected news with id = `{id}`")))?)
+	}
+
 	/// If some or all news in the provided list are already read or not read, it will silently return without errors.
 	#[tracing::instrument(skip(self), level = tracing::Level::DEBUG)]
 	pub async fn set_news_read(&self, news: Vec<Uuid>, is_read: bool) -> Result<(), StorageError> {
