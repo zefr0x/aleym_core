@@ -41,7 +41,7 @@ pub(crate) struct InputNews {
 	pub(crate) updated_at: Option<OffsetDateTime>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct AddingNewsOutput {
 	/// Newly added news items or new versions of existing ones.
 	pub new: Vec<Uuid>,

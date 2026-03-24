@@ -300,8 +300,14 @@ impl StorageConnection {
 	}
 
 	#[tracing::instrument(skip(self), level = tracing::Level::DEBUG)]
-	pub async fn get_all_sources(&self) -> Result<Vec<source::Model>, StorageError> {
-		Ok(Source::find().all(&self.connection).await?)
+	pub async fn get_all_sources(&self, is_enabled: Option<bool>) -> Result<Vec<source::Model>, StorageError> {
+		let mut stmt = Source::find();
+
+		if let Some(is_enabled) = is_enabled {
+			stmt = stmt.filter(source::Column::IsEnabled.eq(is_enabled));
+		}
+
+		Ok(stmt.all(&self.connection).await?)
 	}
 
 	#[tracing::instrument(skip(self), level = tracing::Level::DEBUG)]
@@ -570,11 +576,11 @@ mod tests {
 		.await
 		.expect("Failed to change source name");
 
-		assert_eq!(con.get_all_sources().await.unwrap().iter().count(), 3);
+		assert_eq!(con.get_all_sources(None).await.unwrap().iter().count(), 3);
 		con.delete_source(sources2.first().unwrap().id)
 			.await
 			.expect("Failed to delete source");
-		assert_eq!(con.get_all_sources().await.unwrap().iter().count(), 2);
+		assert_eq!(con.get_all_sources(None).await.unwrap().iter().count(), 2);
 
 		con.assign_category_to_source(sources1.first().unwrap().id, categories.first().unwrap().id)
 			.await

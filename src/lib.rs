@@ -14,17 +14,22 @@
 
 pub mod db;
 mod error;
+#[cfg(feature = "_informant")]
 mod impl_scheduler;
 pub mod inform;
 pub mod net;
 
 pub use error::Error;
+#[cfg(feature = "_informant")]
+pub use impl_scheduler::Event;
 
 pub struct Representative {
 	// TODO: Consider if this should be exposed directly or not.
 	pub storage: db::StorageConnection,
 	#[allow(unused)]
 	network: net::Network,
+	#[cfg(feature = "_informant")]
+	events_sender: Option<tokio::sync::mpsc::UnboundedSender<Event>>,
 }
 
 impl Representative {
@@ -34,6 +39,8 @@ impl Representative {
 		Ok(Self {
 			storage: db::StorageConnection::new(database_file).await?,
 			network: net::Network::new().await?,
+			#[cfg(feature = "_informant")]
+			events_sender: None,
 		})
 	}
 }
