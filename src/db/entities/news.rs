@@ -37,6 +37,14 @@ pub enum Relation {
 		on_delete = "SetNull"
 	)]
 	SelfRef,
+	#[sea_orm(has_many = "super::news_apearance_signal::Entity")]
+	NewsApearanceSignal,
+	#[sea_orm(has_many = "super::news_explicit_vote_signal::Entity")]
+	NewsExplicitVoteSignal,
+	#[sea_orm(has_many = "super::news_focus_signal::Entity")]
+	NewsFocusSignal,
+	#[sea_orm(has_many = "super::news_read_signal::Entity")]
+	NewsReadSignal,
 	#[sea_orm(
 		belongs_to = "super::source::Entity",
 		from = "Column::Source",
@@ -45,6 +53,30 @@ pub enum Relation {
 		on_delete = "Cascade"
 	)]
 	Source,
+}
+
+impl Related<super::news_apearance_signal::Entity> for Entity {
+	fn to() -> RelationDef {
+		Relation::NewsApearanceSignal.def()
+	}
+}
+
+impl Related<super::news_explicit_vote_signal::Entity> for Entity {
+	fn to() -> RelationDef {
+		Relation::NewsExplicitVoteSignal.def()
+	}
+}
+
+impl Related<super::news_focus_signal::Entity> for Entity {
+	fn to() -> RelationDef {
+		Relation::NewsFocusSignal.def()
+	}
+}
+
+impl Related<super::news_read_signal::Entity> for Entity {
+	fn to() -> RelationDef {
+		Relation::NewsReadSignal.def()
+	}
 }
 
 impl Related<super::source::Entity> for Entity {

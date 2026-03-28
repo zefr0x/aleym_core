@@ -4,7 +4,7 @@ pub mod feedrs;
 #[cfg(feature = "informant_feedrs")]
 mod utils;
 
-pub use error::InformantError;
+pub use error::*;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 #[repr(i8)]

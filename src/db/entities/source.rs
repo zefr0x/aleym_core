@@ -37,6 +37,8 @@ pub enum Relation {
 		on_delete = "Cascade"
 	)]
 	SourceDirectory,
+	#[sea_orm(has_many = "super::source_fetch_signal::Entity")]
+	SourceFetchSignal,
 	#[sea_orm(has_many = "super::source_to_category_link::Entity")]
 	SourceToCategoryLink,
 }
@@ -50,6 +52,12 @@ impl Related<super::news::Entity> for Entity {
 impl Related<super::source_directory::Entity> for Entity {
 	fn to() -> RelationDef {
 		Relation::SourceDirectory.def()
+	}
+}
+
+impl Related<super::source_fetch_signal::Entity> for Entity {
+	fn to() -> RelationDef {
+		Relation::SourceFetchSignal.def()
 	}
 }
 

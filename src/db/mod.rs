@@ -1,7 +1,9 @@
+#[expect(unused)]
 mod entities;
 mod error;
 mod impl_migration;
 mod impl_news_storage;
+mod impl_signals_storage;
 mod impl_source_storage;
 mod migration;
 
@@ -12,6 +14,7 @@ pub use uuid;
 
 pub use error::StorageError;
 pub use impl_news_storage::*;
+pub use impl_signals_storage::*;
 pub use migration::Migrator;
 
 #[derive(Clone, Debug)]

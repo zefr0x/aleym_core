@@ -11,4 +11,8 @@ pub enum StorageError {
 	InvalidUtf8Path,
 	#[error("Supplied JSON value doesn't match the required structure: {0}")]
 	InvalidJsonParameters(#[from] serde_json::Error),
+	#[error("Required percentage from 0 to 100, but got `{0}`")]
+	InvalidPercentageNumber(i8),
+	#[error("Integer conversion error occurred: {0}")]
+	IntegerConvertionError(#[from] std::num::TryFromIntError),
 }

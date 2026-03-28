@@ -3,7 +3,12 @@
 pub mod prelude;
 
 pub mod news;
+pub mod news_apearance_signal;
+pub mod news_explicit_vote_signal;
+pub mod news_focus_signal;
+pub mod news_read_signal;
 pub mod source;
 pub mod source_category;
 pub mod source_directory;
+pub mod source_fetch_signal;
 pub mod source_to_category_link;
