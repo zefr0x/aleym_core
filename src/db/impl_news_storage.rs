@@ -1,9 +1,8 @@
-pub use sea_orm::Order as SortOrder;
-use sea_orm::{ActiveValue::Set, Condition, ExprTrait, QueryOrder, QuerySelect, prelude::*};
+use sea_orm::{ActiveValue::Set, Condition, ExprTrait, QuerySelect, prelude::*};
 use time::OffsetDateTime;
 
 use super::{
-	StorageConnection, StorageError,
+	SortOrder, StorageConnection, StorageError,
 	entities::{news, prelude::*, source, source_category},
 };
 
@@ -249,23 +248,33 @@ impl StorageConnection {
 	) -> Result<Vec<news::Model>, StorageError> {
 		let result = match filter {
 			NewsFilter::Source(source) => {
-				News::find()
+				let mut stmt = News::find()
 					.filter(
 						news::Column::Source
 							.eq(source)
 							.and(news::Column::IsLatestVersion.eq(true)),
 					)
-					.order_by(news::Column::FirstFetchedAt, sort_order.clone())
-					.order_by(news::Column::PublishedAt, sort_order.clone())
-					.order_by(news::Column::UpdatedAt, sort_order.clone())
-					// Ensure that we have a consistent order when there is nothing for fallback sorting
-					.order_by(news::Column::Id, sort_order)
 					.limit(limit)
-					.cursor_by(news::Column::FirstFetchedAt)
-					.after(cursor_after)
-					.before(cursor_before)
-					.all(&self.connection)
-					.await?
+					.cursor_by((
+						news::Column::FirstFetchedAt,
+						news::Column::PublishedAt,
+						news::Column::UpdatedAt,
+						// Ensure that we have a consistent order when there is nothing for fallback sorting
+						news::Column::Id,
+					));
+
+				match sort_order {
+					SortOrder::Ascending => stmt
+						.after((cursor_after, TIME_MIN, TIME_MIN, Uuid::nil()))
+						.before((cursor_before, TIME_MAX, TIME_MAX, Uuid::max()))
+						.asc(),
+					SortOrder::Descending => stmt
+						.after((cursor_before, TIME_MAX, TIME_MAX, Uuid::max()))
+						.before((cursor_after, TIME_MIN, TIME_MIN, Uuid::nil()))
+						.desc(),
+				}
+				.all(&self.connection)
+				.await?
 			}
 			NewsFilter::DirectoryOrCategories(filter) => {
 				let mut condition = Condition::all().add(news::Column::IsLatestVersion.eq(true));
@@ -292,23 +301,34 @@ impl StorageConnection {
 					}
 				}
 
-				News::find()
+				let mut stmt = News::find()
 					.find_also_related(Source)
 					.and_also_related(SourceCategory)
 					.filter(condition)
-					.order_by(news::Column::FirstFetchedAt, sort_order.clone())
-					.order_by(news::Column::PublishedAt, sort_order.clone())
-					.order_by(news::Column::UpdatedAt, sort_order.clone())
-					.order_by(news::Column::Id, sort_order)
 					.limit(limit)
-					.cursor_by(news::Column::FirstFetchedAt)
-					.after(cursor_after)
-					.before(cursor_before)
-					.all(&self.connection)
-					.await?
-					.into_iter()
-					.map(|n| n.0)
-					.collect::<Vec<news::Model>>()
+					.cursor_by((
+						news::Column::FirstFetchedAt,
+						news::Column::PublishedAt,
+						news::Column::UpdatedAt,
+						// Ensure that we have a consistent order when there is nothing for fallback sorting
+						news::Column::Id,
+					));
+
+				match sort_order {
+					SortOrder::Ascending => stmt
+						.after((cursor_after, TIME_MIN, TIME_MIN, Uuid::nil()))
+						.before((cursor_before, TIME_MAX, TIME_MAX, Uuid::max()))
+						.asc(),
+					SortOrder::Descending => stmt
+						.after((cursor_before, TIME_MAX, TIME_MAX, Uuid::max()))
+						.before((cursor_after, TIME_MIN, TIME_MIN, Uuid::nil()))
+						.desc(),
+				}
+				.all(&self.connection)
+				.await?
+				.into_iter()
+				.map(|n| n.0)
+				.collect::<Vec<news::Model>>()
 			}
 		};
 

@@ -18,6 +18,12 @@ pub use impl_signals_storage::*;
 pub use migration::Migrator;
 
 #[derive(Clone, Debug)]
+pub enum SortOrder {
+	Ascending,
+	Descending,
+}
+
+#[derive(Clone, Debug)]
 pub struct StorageConnection {
 	connection: DatabaseConnection,
 }
