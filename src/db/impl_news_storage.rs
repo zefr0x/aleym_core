@@ -17,15 +17,12 @@ pub struct DirectoryBasedNewsFilter {
 }
 
 #[derive(Debug, Clone)]
-pub struct DirectoryOrCategoriesBasedNewsFilter {
-	pub directory: Option<DirectoryBasedNewsFilter>,
-	pub categories: Vec<Uuid>,
-}
-
-#[derive(Debug, Clone)]
 pub enum NewsFilter {
 	Source(Uuid),
-	DirectoryOrCategories(DirectoryOrCategoriesBasedNewsFilter),
+	DirectoryOrCategories {
+		directory: Option<DirectoryBasedNewsFilter>,
+		categories: Vec<Uuid>,
+	},
 }
 
 #[cfg(feature = "_informant")]
@@ -276,14 +273,17 @@ impl StorageConnection {
 				.all(&self.connection)
 				.await?
 			}
-			NewsFilter::DirectoryOrCategories(filter) => {
+			NewsFilter::DirectoryOrCategories {
+				directory: directory_filter,
+				categories: categories_filter,
+			} => {
 				let mut condition = Condition::all().add(news::Column::IsLatestVersion.eq(true));
 
-				if !filter.categories.is_empty() {
-					condition = condition.add(source_category::Column::Id.is_in(filter.categories));
+				if !categories_filter.is_empty() {
+					condition = condition.add(source_category::Column::Id.is_in(categories_filter));
 				}
 
-				if let Some(directory_filter) = filter.directory {
+				if let Some(directory_filter) = directory_filter {
 					if directory_filter.recursive {
 						tracing::trace!(filter.parent_directory=?directory_filter.parent_directory, "traversing descendant directories");
 
