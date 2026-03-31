@@ -1,14 +1,14 @@
 use sea_orm::{ActiveValue::Set, prelude::*};
 use time::{Duration, OffsetDateTime};
 
+#[cfg(feature = "_informant")]
+use super::entities::source_fetch_signal;
 use super::{
 	StorageConnection, StorageError,
-	entities::{
-		news_apearance_signal, news_explicit_vote_signal, news_focus_signal, news_read_signal, source_fetch_signal,
-	},
+	entities::{news_apearance_signal, news_explicit_vote_signal, news_focus_signal, news_read_signal},
 };
 
-#[expect(unused)]
+#[cfg(feature = "_informant")]
 #[derive(Debug)]
 pub(crate) enum SourceFeedbackSignal {
 	FetchSignal {
@@ -127,7 +127,7 @@ impl StorageConnection {
 		Ok(())
 	}
 
-	#[expect(unused)]
+	#[cfg(feature = "_informant")]
 	#[tracing::instrument(skip(self), level = tracing::Level::DEBUG)]
 	pub(crate) async fn store_source_feedback_signal(&self, signal: SourceFeedbackSignal) -> Result<(), StorageError> {
 		match signal {

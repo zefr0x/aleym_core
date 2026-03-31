@@ -45,7 +45,7 @@ impl InformantError {
 	/// Get the error kind for database storage.
 	///
 	/// Used to categorize errors for the machine-learned ranking engine.
-	#[expect(unused)]
+	#[cfg_attr(not(feature = "_informant"), expect(unused))]
 	pub(crate) const fn kind(&self) -> InformantErrorKind {
 		// NOTE: Breaking changes to the following mappings should be accompanied with a database migration.
 		match self {

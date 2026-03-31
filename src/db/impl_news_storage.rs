@@ -43,6 +43,10 @@ pub struct AddingNewsOutput {
 	pub new: Vec<Uuid>,
 	/// Were seen again in the feed without any change or there is a newer version of them identified in `new`.
 	pub touched: Vec<Uuid>,
+	/// Time of latest publication in news items.
+	pub latest_publish: Option<OffsetDateTime>,
+	/// Time of oldest publication in news items.
+	pub oldest_publish: Option<OffsetDateTime>,
 }
 
 impl StorageConnection {
@@ -71,7 +75,27 @@ impl StorageConnection {
 		let mut output = AddingNewsOutput {
 			new: Vec::new(),
 			touched: Vec::new(),
+			latest_publish: None,
+			oldest_publish: None,
 		};
+
+		macro_rules! update_output_publish_bounds {
+			($item:expr, $output:expr) => {{
+				match ($item.published_at, $output.oldest_publish, $output.latest_publish) {
+					(Some(published_at), _, Some(latest_publish)) if published_at > latest_publish => {
+						$output.latest_publish = $item.published_at;
+					}
+					(Some(published_at), Some(oldest_publish), _) if published_at < oldest_publish => {
+						$output.oldest_publish = $item.published_at;
+					}
+					(Some(_), None, None) => {
+						$output.oldest_publish = $item.published_at;
+						$output.latest_publish = $item.published_at;
+					}
+					_ => {}
+				}
+			}};
+		}
 
 		for (key_source_provided_id, versions) in grouped_items {
 			// Skip versioning items when there is no `source_provided_id`
@@ -120,6 +144,8 @@ impl StorageConnection {
 							is_read: Set(false),
 						});
 						output.new.push(id);
+
+						update_output_publish_bounds!(item, output);
 
 						tracing::debug!(news.id = ?id, "adding new news");
 					}
@@ -185,6 +211,8 @@ impl StorageConnection {
 						is_read: Set(false),
 					});
 					output.new.push(id);
+
+					update_output_publish_bounds!(item, output);
 
 					if let Some(previous_id) = previous_id.take()
 						&& !output.new.contains(&previous_id)

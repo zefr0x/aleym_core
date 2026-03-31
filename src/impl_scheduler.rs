@@ -1,6 +1,6 @@
 use super::{
 	Error,
-	db::{AddingNewsOutput, InputNews, uuid::Uuid},
+	db::{AddingNewsOutput, InputNews, SourceFeedbackSignal, StorageError, uuid::Uuid},
 	inform::{self, InformantError, InformantTrait as _},
 };
 
@@ -32,7 +32,10 @@ impl super::Representative {
 		}
 	}
 
+	// TODO: Replace this to ask the scheduler for preference rather than forcing a manual trigger that bypasses it.
 	/// Manually execute fetch operation of a specific source.
+	///
+	/// Note that this will not result in any machine-learning signals.
 	#[tracing::instrument(skip(self), level = tracing::Level::DEBUG)]
 	pub async fn trigger_informant_by_source(&self, source: Uuid) -> Result<AddingNewsOutput, Error> {
 		let source = self.storage.get_source(source).await?;
@@ -62,7 +65,9 @@ impl super::Representative {
 				tokio::time::sleep(std::time::Duration::from_mins(rand::random_range(1..15))).await;
 
 				if let Some(source) = sources.pop() {
-					let items = self
+					let started_at = time::OffsetDateTime::now_utc();
+
+					let input_items = self
 						.trigger_informant(
 							super::net::InterfaceType::try_from(source.network)?,
 							serde_json::from_value::<inform::Parameters>(source.informant_parameters)
@@ -70,19 +75,49 @@ impl super::Representative {
 						)
 						.await;
 
-					match items {
-						Ok(items) => {
-							let output = self.storage.add_news(source.id, items).await?;
+					match (input_items, time::OffsetDateTime::now_utc() - started_at) {
+						(Ok(input_items), duration) => {
+							let addition_output = self.storage.add_news(source.id, input_items).await?;
+
+							self.storage
+								.store_source_feedback_signal(SourceFeedbackSignal::FetchSignal {
+									source: source.id,
+									done_at: started_at,
+									duration,
+									failure_code: None,
+									new_items_count: addition_output
+										.new
+										.len()
+										.try_into()
+										.map_err(StorageError::from)?,
+									latest_publish_at: addition_output.latest_publish,
+									oldest_publish_at: addition_output.oldest_publish,
+								})
+								.await?;
 
 							self.send_event(move || Event::NewsUpdated {
 								source_id: source.id,
-								updates: output,
+								updates: addition_output,
 							});
 						}
-						Err(e) => {
+						(Err(error), duration) => {
+							tracing::error!(?source.id, ?error, "Informant execution failure");
+
+							self.storage
+								.store_source_feedback_signal(SourceFeedbackSignal::FetchSignal {
+									source: source.id,
+									done_at: started_at,
+									duration,
+									failure_code: Some(error.kind()),
+									new_items_count: 0,
+									oldest_publish_at: None,
+									latest_publish_at: None,
+								})
+								.await?;
+
 							self.send_event(move || Event::InformantError {
 								source_id: source.id,
-								error: e.to_string(),
+								error: error.to_string(),
 							});
 						}
 					}
