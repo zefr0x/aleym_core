@@ -1,7 +1,7 @@
 #[allow(unused)]
 pub(crate) use http_body_util as body_util;
 #[allow(unused)]
-pub(crate) use hyper::{Method, Request, Response, Uri, body, header, http::uri::InvalidUri};
+pub(crate) use hyper::{Method, Request, Response, StatusCode, Uri, body, header, http::uri::InvalidUri};
 use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::net::NetworkError;

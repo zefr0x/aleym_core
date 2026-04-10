@@ -27,4 +27,7 @@ pub enum NetworkError {
 	UnsupportedProtocolScheme(String),
 	#[error("Network interface with identifier `{0}` is not available")]
 	UnsupportedNetworkInterfaceIdentifier(i8),
+	#[cfg(any(feature = "net_protocol_http1", feature = "net_protocol_http2"))]
+	#[error("Unsuccessful HTTP status code occurred: {0}")]
+	UnsuccessfulHttpRequest(super::protocols::http::StatusCode),
 }

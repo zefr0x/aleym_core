@@ -23,7 +23,7 @@ impl Informant {
 		#[cfg(not(feature = "_net_protocol_http"))]
 		compile_error!("HTTP protocol is required to be enabled for compiling with `informant_feedrs`");
 
-		Ok(self
+		let response = self
 			.network
 			.http_request(
 				http::Request::builder()
@@ -37,7 +37,15 @@ impl Informant {
 					.unwrap(),
 				false,
 			)
-			.await?)
+			.await?;
+
+		// Convert failure status codes into errors.
+		match response.status() {
+			code if code.is_success() => Ok(response),
+			code => Err(InformantError::NetworkError(
+				net::NetworkError::UnsuccessfulHttpRequest(code),
+			)),
+		}
 	}
 
 	fn parse(body: &[u8]) -> Result<Vec<InputNews>, InformantError> {
