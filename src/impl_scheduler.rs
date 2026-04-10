@@ -129,12 +129,21 @@ impl super::Representative {
 	}
 
 	/// Create a channel to receive real-time events from the scheduler.
+	///
+	/// Should be closed using [`close_events_channel()`].
 	pub fn open_events_channel(&mut self) -> tokio::sync::mpsc::UnboundedReceiver<Event> {
-		let (sender, reciver) = tokio::sync::mpsc::unbounded_channel::<Event>();
+		let (sender, receiver) = tokio::sync::mpsc::unbounded_channel::<Event>();
 
 		self.events_sender = Some(sender);
 
-		reciver
+		receiver
+	}
+
+	/// Close the sender of the events channel.
+	///
+	/// This should be used first instead of closing the receiver to prevent unnecessary attempts by the scheduler to send.
+	pub fn close_events_channel(&mut self) {
+		self.events_sender = None;
 	}
 
 	fn send_event<F>(&self, event: F)
@@ -147,7 +156,12 @@ impl super::Representative {
 
 			tracing::debug!(?event, "sending to events channel");
 
-			events_sender.send(event).unwrap()
+			if let Err(error) = events_sender.send(event) {
+				tracing::warn!(
+					event=?error.0,
+					"Failed to send event due to the receiver being closed. Please make sure to close the sender as well."
+				);
+			}
 		}
 	}
 }
