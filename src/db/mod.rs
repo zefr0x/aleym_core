@@ -2,6 +2,7 @@
 mod entities;
 mod error;
 mod impl_migration;
+mod impl_news_recommendation;
 mod impl_news_storage;
 mod impl_signals_storage;
 mod impl_source_storage;
