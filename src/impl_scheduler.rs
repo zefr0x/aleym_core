@@ -130,7 +130,7 @@ impl super::Representative {
 
 	/// Create a channel to receive real-time events from the scheduler.
 	///
-	/// Should be closed using [`close_events_channel()`].
+	/// Should be closed using [`super::Representative::close_events_channel()`].
 	pub fn open_events_channel(&mut self) -> tokio::sync::mpsc::UnboundedReceiver<Event> {
 		let (sender, receiver) = tokio::sync::mpsc::unbounded_channel::<Event>();
 
