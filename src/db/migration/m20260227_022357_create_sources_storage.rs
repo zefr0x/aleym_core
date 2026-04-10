@@ -1,6 +1,6 @@
 use sea_orm_migration::{
 	prelude::*,
-	schema::{boolean, json, text, tiny_integer, uuid},
+	schema::{boolean, integer, json, text, tiny_integer, uuid},
 };
 
 #[derive(DeriveIden)]
@@ -35,6 +35,7 @@ pub enum Source {
 	LogoUri,
 	CustomId,
 	IsEnabled,
+	ProvidedTtl,
 }
 
 #[derive(DeriveIden)]
@@ -121,6 +122,8 @@ impl MigrationTrait for Migration {
 					.col(text(Source::LogoUri).null())
 					.col(text(Source::CustomId).null().unique_key())
 					.col(boolean(Source::IsEnabled))
+					// NOTE: TTL duration is stored in seconds.
+					.col(integer(Source::ProvidedTtl).null())
 					.foreign_key(
 						ForeignKey::create()
 							.from(Source::Table, Source::ParentDirectory)

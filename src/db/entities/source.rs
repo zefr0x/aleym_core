@@ -23,6 +23,7 @@ pub struct Model {
 	#[sea_orm(column_type = "Text", nullable, unique)]
 	pub custom_id: Option<String>,
 	pub is_enabled: bool,
+	pub provided_ttl: Option<i32>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
