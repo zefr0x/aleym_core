@@ -49,7 +49,8 @@ The following types are enforced:
 - `cid`: Changes to our CI/CD configuration files and scripts
 - `dev`: Changes to development helping scrips and tools
 - `release`: New version (changes in changelogs and build system)
-- `docs`: Documentation only changes (including code comments, some metadata in appstream file, etc.)
+- `docs`: Documentation only changes (including code comments, some metadata in appstream file, fixing broken reference,
+  etc.)
 - `i18n`: Internationalization and localization changes (language code must be specified when adding or modifying
   translations)
 - `data`: Changes to other data files attached to or used by the application either in run-time or compile-time (e.g.
