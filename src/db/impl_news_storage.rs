@@ -1,4 +1,4 @@
-use sea_orm::{ActiveValue::Set, Condition, ExprTrait, QuerySelect, prelude::*};
+use sea_orm::{ActiveValue::Set, Condition, QuerySelect, prelude::*, sea_query::LikeExpr};
 use time::OffsetDateTime;
 
 use super::{
@@ -11,18 +11,24 @@ pub const TIME_MAX: OffsetDateTime =
 	time::OffsetDateTime::new_in_offset(time::Date::MAX, time::Time::MAX, time::UtcOffset::UTC);
 
 #[derive(Debug, Clone)]
-pub struct DirectoryBasedNewsFilter {
+pub struct BySourceDirectory {
 	pub parent_directory: Uuid,
 	pub recursive: bool,
 }
 
 #[derive(Debug, Clone)]
-pub enum NewsFilter {
-	Source(Uuid),
-	DirectoryOrCategories {
-		directory: Option<DirectoryBasedNewsFilter>,
+pub enum BySources {
+	Identifiers(Vec<Uuid>),
+	Scope {
+		directory: Option<BySourceDirectory>,
 		categories: Vec<Uuid>,
 	},
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct NewsFilter {
+	pub text: Option<String>,
+	pub sources: Option<BySources>,
 }
 
 #[cfg(feature = "_informant")]
@@ -263,7 +269,7 @@ impl StorageConnection {
 	///
 	/// Use [`TIME_MAX`] and [`TIME_MIN`] with a limit to get the first page, than use the result to progress further.
 	#[tracing::instrument(skip(self), level = tracing::Level::DEBUG)]
-	pub async fn get_news_with_source_filter(
+	pub async fn get_news_with_filter(
 		&self,
 		filter: NewsFilter,
 		sort_order: SortOrder,
@@ -271,22 +277,29 @@ impl StorageConnection {
 		cursor_before: OffsetDateTime,
 		limit: u64,
 	) -> Result<Vec<news::Model>, StorageError> {
-		let result = match filter {
-			NewsFilter::Source(source) => {
-				let mut stmt = News::find()
-					.filter(
-						news::Column::Source
-							.eq(source)
-							.and(news::Column::IsLatestVersion.eq(true)),
-					)
-					.limit(limit)
-					.cursor_by((
-						news::Column::FirstFetchedAt,
-						news::Column::PublishedAt,
-						news::Column::UpdatedAt,
-						// Ensure that we have a consistent order when there is nothing for fallback sorting
-						news::Column::Id,
-					));
+		let mut condition = Condition::all().add(news::Column::IsLatestVersion.eq(true));
+
+		if let Some(mut text) = filter.text {
+			text = text.replace("%", "\\%").replace("_", "\\_");
+			let pattern = LikeExpr::new(format!(r"%{text}%")).escape('\\');
+
+			condition = condition.add(
+				Condition::any()
+					.add(news::Column::Title.like(pattern.clone()))
+					.add(news::Column::Summary.like(pattern.clone()))
+					.add(news::Column::Content.like(pattern)),
+			);
+		}
+
+		let result = match filter.sources {
+			None => {
+				let mut stmt = News::find().filter(condition).limit(limit).cursor_by((
+					news::Column::FirstFetchedAt,
+					news::Column::PublishedAt,
+					news::Column::UpdatedAt,
+					// Ensure that we have a consistent order when there is nothing for fallback sorting
+					news::Column::Id,
+				));
 
 				match sort_order {
 					SortOrder::Ascending => stmt
@@ -301,12 +314,34 @@ impl StorageConnection {
 				.all(&self.connection)
 				.await?
 			}
-			NewsFilter::DirectoryOrCategories {
+			Some(BySources::Identifiers(sources)) => {
+				condition = condition.add(news::Column::Source.is_in(sources));
+
+				let mut stmt = News::find().filter(condition).limit(limit).cursor_by((
+					news::Column::FirstFetchedAt,
+					news::Column::PublishedAt,
+					news::Column::UpdatedAt,
+					// Ensure that we have a consistent order when there is nothing for fallback sorting
+					news::Column::Id,
+				));
+
+				match sort_order {
+					SortOrder::Ascending => stmt
+						.after((cursor_after, TIME_MIN, TIME_MIN, Uuid::nil()))
+						.before((cursor_before, TIME_MAX, TIME_MAX, Uuid::max()))
+						.asc(),
+					SortOrder::Descending => stmt
+						.after((cursor_before, TIME_MAX, TIME_MAX, Uuid::max()))
+						.before((cursor_after, TIME_MIN, TIME_MIN, Uuid::nil()))
+						.desc(),
+				}
+				.all(&self.connection)
+				.await?
+			}
+			Some(BySources::Scope {
 				directory: directory_filter,
 				categories: categories_filter,
-			} => {
-				let mut condition = Condition::all().add(news::Column::IsLatestVersion.eq(true));
-
+			}) => {
 				if !categories_filter.is_empty() {
 					condition = condition.add(source_category::Column::Id.is_in(categories_filter));
 				}
