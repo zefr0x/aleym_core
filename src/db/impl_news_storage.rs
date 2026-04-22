@@ -159,7 +159,7 @@ impl StorageConnection {
 			} else {
 				let mut versions = versions.into_iter().collect::<Vec<InputNews>>();
 				// Sort versions in ascending order to process oldest first
-				versions.sort_by(|a, b| (a.updated_at.or(a.published_at)).cmp(&b.updated_at.or(b.published_at)));
+				versions.sort_by_key(|v| v.updated_at.or(v.published_at));
 
 				// NOTE: If old items got added when newer ones exists, they will be considered as new versions.
 
