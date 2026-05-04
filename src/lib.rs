@@ -17,6 +17,7 @@ mod error;
 #[cfg(feature = "_informant")]
 mod impl_scheduler;
 pub mod inform;
+pub mod ml;
 pub mod net;
 
 pub use error::Error;

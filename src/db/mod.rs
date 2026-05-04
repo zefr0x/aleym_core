@@ -1,5 +1,6 @@
+// TODO: Create custom structs for each output when everything is clear.
 #[expect(unused)]
-mod entities;
+pub(crate) mod entities;
 mod error;
 mod impl_migration;
 mod impl_news_recommendation;

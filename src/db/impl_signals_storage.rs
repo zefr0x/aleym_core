@@ -1,11 +1,13 @@
-use sea_orm::{ActiveValue::Set, prelude::*};
+use sea_orm::{ActiveValue::Set, Paginator, QuerySelect, SelectModel, prelude::*};
 use time::{Duration, OffsetDateTime};
 
 #[cfg(feature = "_informant")]
 use super::entities::source_fetch_signal;
 use super::{
 	StorageConnection, StorageError,
-	entities::{news_apearance_signal, news_explicit_vote_signal, news_focus_signal, news_read_signal},
+	entities::{
+		news, news_apearance_signal, news_explicit_vote_signal, news_focus_signal, news_read_signal, prelude::*,
+	},
 };
 
 #[cfg(feature = "_informant")]
@@ -156,5 +158,74 @@ impl StorageConnection {
 		}
 
 		Ok(())
+	}
+
+	#[tracing::instrument(skip(self), level = tracing::Level::DEBUG)]
+	pub(crate) async fn get_focus_signals<'db>(
+		&'db self,
+		source: uuid::Uuid,
+		cutoff_time: time::OffsetDateTime,
+		limit: u64,
+	) -> Result<Paginator<'db, DatabaseConnection, SelectModel<news_focus_signal::Model>>, StorageError> {
+		Ok(NewsFocusSignal::find()
+			.has_related(News, news::Column::Source.eq(source))
+			.filter(news_focus_signal::Column::DoneAt.gte(cutoff_time))
+			.limit(limit)
+			.paginate(&self.connection, 100))
+	}
+
+	#[tracing::instrument(skip(self), level = tracing::Level::DEBUG)]
+	pub(crate) async fn get_read_signals<'db>(
+		&'db self,
+		source: uuid::Uuid,
+		cutoff_time: time::OffsetDateTime,
+		limit: u64,
+	) -> Result<Paginator<'db, DatabaseConnection, SelectModel<news_read_signal::Model>>, StorageError> {
+		Ok(NewsReadSignal::find()
+			.has_related(News, news::Column::Source.eq(source))
+			.filter(news_read_signal::Column::DoneAt.gte(cutoff_time))
+			.limit(limit)
+			.paginate(&self.connection, 100))
+	}
+
+	#[tracing::instrument(skip(self), level = tracing::Level::DEBUG)]
+	pub(crate) async fn get_vote_signals<'db>(
+		&'db self,
+		source: uuid::Uuid,
+		cutoff_time: time::OffsetDateTime,
+		limit: u64,
+	) -> Result<Paginator<'db, DatabaseConnection, SelectModel<news_explicit_vote_signal::Model>>, StorageError> {
+		Ok(NewsExplicitVoteSignal::find()
+			.has_related(News, news::Column::Source.eq(source))
+			.filter(news_explicit_vote_signal::Column::DoneAt.gte(cutoff_time))
+			.limit(limit)
+			.paginate(&self.connection, 100))
+	}
+
+	#[tracing::instrument(skip(self), level = tracing::Level::DEBUG)]
+	pub(crate) async fn get_source_appearance_signals<'db>(
+		&'db self,
+		source: uuid::Uuid,
+		cutoff_time: time::OffsetDateTime,
+		limit: u64,
+	) -> Result<Paginator<'db, DatabaseConnection, SelectModel<news_apearance_signal::Model>>, StorageError> {
+		Ok(NewsApearanceSignal::find()
+			.has_related(News, news::Column::Source.eq(source))
+			.filter(news_apearance_signal::Column::HappenedAt.gte(cutoff_time))
+			.limit(limit)
+			.paginate(&self.connection, 100))
+	}
+
+	#[tracing::instrument(skip(self), level = tracing::Level::DEBUG)]
+	pub(crate) async fn get_news_appearance_signals<'db>(
+		&'db self,
+		news: uuid::Uuid,
+		cutoff_time: time::OffsetDateTime,
+		limit: u64,
+	) -> Result<Paginator<'db, DatabaseConnection, SelectModel<news_apearance_signal::Model>>, StorageError> {
+		Ok(NewsApearanceSignal::find_by_id(news)
+			.filter(news_apearance_signal::Column::HappenedAt.gte(cutoff_time))
+			.limit(limit)
+			.paginate(&self.connection, 100))
 	}
 }
