@@ -1,9 +1,14 @@
-use sea_orm::{ActiveValue::Set, Condition, QuerySelect, prelude::*, sea_query::LikeExpr};
+use sea_orm::{
+	ActiveValue::{self, Set, Unchanged},
+	Condition, QuerySelect,
+	prelude::*,
+	sea_query::LikeExpr,
+};
 use time::OffsetDateTime;
 
 use super::{
 	SortOrder, StorageConnection, StorageError,
-	entities::{news, prelude::*, source, source_category},
+	entities::{news, news_label, news_to_label_link, prelude::*, source, source_category},
 };
 
 pub const TIME_MIN: OffsetDateTime = time::OffsetDateTime::UNIX_EPOCH;
@@ -365,6 +370,7 @@ impl StorageConnection {
 				}
 
 				let mut stmt = News::find()
+					// TODO: use `has_relation`.
 					.find_also_related(Source)
 					.and_also_related(SourceCategory)
 					.filter(condition)
@@ -419,5 +425,73 @@ impl StorageConnection {
 			.await?;
 
 		Ok(())
+	}
+
+	/// Returns a label identifier.
+	#[tracing::instrument(skip(self), level = tracing::Level::DEBUG)]
+	pub async fn create_news_label(&self, name: String, description: Option<String>) -> Result<Uuid, StorageError> {
+		let label_id = Uuid::new_v4();
+
+		let label = news_label::ActiveModel {
+			id: Set(label_id),
+			name: Set(name),
+			description: Set(description),
+		};
+
+		tracing::debug!(label.id = ?label_id, "creating new news label");
+
+		let label = label.insert(&self.connection).await?;
+
+		Ok(label.id)
+	}
+
+	#[tracing::instrument(skip(self), level = tracing::Level::DEBUG)]
+	pub async fn edit_news_label(
+		&self,
+		id: Uuid,
+		name: ActiveValue<String>,
+		description: ActiveValue<Option<String>>,
+	) -> Result<(), StorageError> {
+		let label = news_label::ActiveModel {
+			id: Unchanged(id),
+			name,
+			description,
+		};
+
+		tracing::debug!("editing news label");
+
+		label.update(&self.connection).await?;
+
+		Ok(())
+	}
+
+	#[tracing::instrument(skip(self), level = tracing::Level::DEBUG)]
+	pub async fn delete_news_label(&self, id: Uuid) -> Result<(), StorageError> {
+		tracing::trace!("deleting news label");
+
+		NewsLabel::delete_by_id(id).exec(&self.connection).await?;
+
+		Ok(())
+	}
+
+	#[tracing::instrument(skip(self), level = tracing::Level::DEBUG)]
+	pub async fn get_all_news_labels(&self) -> Result<Vec<news_label::Model>, StorageError> {
+		Ok(NewsLabel::find().all(&self.connection).await?)
+	}
+
+	#[tracing::instrument(skip(self), level = tracing::Level::DEBUG)]
+	pub async fn get_news_label(&self, id: Uuid) -> Result<news_label::Model, StorageError> {
+		Ok(NewsLabel::find_by_id(id)
+			.one(&self.connection)
+			.await?
+			.ok_or(DbErr::RecordNotFound(format!("Expected news_label with id = `{id}`")))?)
+	}
+
+	#[tracing::instrument(skip(self), level = tracing::Level::DEBUG)]
+	pub async fn get_labels_of_news(&self, news_id: Uuid) -> Result<Vec<news_label::Model>, StorageError> {
+		Ok(NewsLabel::find()
+			.has_related(NewsToLabelLink, news_to_label_link::Column::NewsId.eq(news_id))
+			.all(&self.connection)
+			.await?)
 	}
 }

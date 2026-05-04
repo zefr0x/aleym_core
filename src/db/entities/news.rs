@@ -45,6 +45,8 @@ pub enum Relation {
 	NewsFocusSignal,
 	#[sea_orm(has_many = "super::news_read_signal::Entity")]
 	NewsReadSignal,
+	#[sea_orm(has_many = "super::news_to_label_link::Entity")]
+	NewsToLabelLink,
 	#[sea_orm(
 		belongs_to = "super::source::Entity",
 		from = "Column::Source",
@@ -79,9 +81,24 @@ impl Related<super::news_read_signal::Entity> for Entity {
 	}
 }
 
+impl Related<super::news_to_label_link::Entity> for Entity {
+	fn to() -> RelationDef {
+		Relation::NewsToLabelLink.def()
+	}
+}
+
 impl Related<super::source::Entity> for Entity {
 	fn to() -> RelationDef {
 		Relation::Source.def()
+	}
+}
+
+impl Related<super::news_label::Entity> for Entity {
+	fn to() -> RelationDef {
+		super::news_to_label_link::Relation::NewsLabel.def()
+	}
+	fn via() -> Option<RelationDef> {
+		Some(super::news_to_label_link::Relation::News.def().rev())
 	}
 }
 
