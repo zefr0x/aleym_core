@@ -253,6 +253,9 @@ impl StorageConnection {
 
 		let source = source.insert(&self.connection).await?;
 
+		self.send_scheduler_notification(super::ScheduleNotify::SourceEnabled(source.id))
+			.await;
+
 		Ok(source.id)
 	}
 
@@ -272,20 +275,30 @@ impl StorageConnection {
 			ActiveValue::NotSet => ActiveValue::NotSet,
 		};
 
-		let directory = source::ActiveModel {
+		let source = source::ActiveModel {
 			id: Unchanged(id),
 			parent_directory,
 			// TODO: Handle both network and editable informant parameters when implemented.
 			network,
 			name,
 			description,
-			is_enabled,
+			is_enabled: is_enabled.clone(),
 			..Default::default()
 		};
 
 		tracing::debug!("editing source category");
 
-		directory.update(&self.connection).await?;
+		let source = source.update(&self.connection).await?;
+
+		if is_enabled.is_set() {
+			if source.is_enabled {
+				self.send_scheduler_notification(super::ScheduleNotify::SourceEnabled(source.id))
+					.await;
+			} else {
+				self.send_scheduler_notification(super::ScheduleNotify::SourceDisabled(source.id))
+					.await;
+			}
+		}
 
 		Ok(())
 	}
@@ -294,7 +307,12 @@ impl StorageConnection {
 	pub async fn delete_source(&self, id: Uuid) -> Result<(), StorageError> {
 		tracing::trace!("deleting source");
 
-		Source::delete_by_id(id).exec(&self.connection).await?;
+		let result = Source::delete_by_id(id).exec(&self.connection).await?;
+
+		if result.rows_affected != 0 {
+			self.send_scheduler_notification(super::ScheduleNotify::SourceDisabled(id))
+				.await;
+		}
 
 		Ok(())
 	}

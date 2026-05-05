@@ -10,4 +10,7 @@ pub enum Error {
 	NetworkError(#[from] net::NetworkError),
 	#[error("Informant error occurred: {0}")]
 	InformantError(#[from] inform::InformantError),
+	#[cfg(feature = "_informant")]
+	#[error("Scheduler error occurred: {0}")]
+	SchedulerError(#[from] crate::ml::SchedulerError),
 }

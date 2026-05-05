@@ -1,7 +1,8 @@
 use super::{
 	Error,
-	db::{AddingNewsOutput, InputNews, SourceFeedbackSignal, StorageError, uuid::Uuid},
+	db::{self, AddingNewsOutput, InputNews, SourceFeedbackSignal, StorageError, uuid::Uuid},
 	inform::{self, InformantError, InformantTrait as _},
+	ml,
 };
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -51,81 +52,176 @@ impl super::Representative {
 		Ok(self.storage.add_news(source.id, items).await?)
 	}
 
-	/// This never returns unless storage related error occurs.
-	pub async fn start_scheduler(&self) -> Result<(), Error> {
-		use rand::seq::SliceRandom as _;
+	/// Manually execute fetch operation of a specific source and store signal of the results.
+	#[tracing::instrument(skip(self), level = tracing::Level::DEBUG)]
+	async fn trigger_informant_with_telemetry_by_source(&self, source: Uuid) -> Result<(), Error> {
+		let source = self.storage.get_source(source).await?;
 
-		let mut rng = rand::rng();
+		let started_at = time::OffsetDateTime::now_utc();
+		let input_items = self
+			.trigger_informant(
+				super::net::InterfaceType::try_from(source.network)?,
+				serde_json::from_value::<inform::Parameters>(source.informant_parameters)
+					.map_err(inform::InformantError::from)?,
+			)
+			.await;
 
-		loop {
-			let mut sources = self.storage.get_all_sources(Some(true)).await?;
-			sources.shuffle(&mut rng);
+		match (input_items, time::OffsetDateTime::now_utc() - started_at) {
+			(Ok(input_items), duration) => {
+				let addition_output = self.storage.add_news(source.id, input_items).await?;
 
-			loop {
-				tokio::time::sleep(std::time::Duration::from_mins(rand::random_range(1..15))).await;
+				self.storage
+					.store_source_feedback_signal(SourceFeedbackSignal::FetchSignal {
+						source: source.id,
+						done_at: started_at,
+						duration,
+						failure_code: None,
+						new_items_count: addition_output.new.len().try_into().map_err(StorageError::from)?,
+						latest_publish_at: addition_output.latest_publish,
+						oldest_publish_at: addition_output.oldest_publish,
+					})
+					.await?;
 
-				if let Some(source) = sources.pop() {
-					let started_at = time::OffsetDateTime::now_utc();
+				self.send_event(move || Event::NewsUpdated {
+					source_id: source.id,
+					updates: addition_output,
+				});
+			}
+			(Err(error), duration) => {
+				tracing::error!(?source.id, ?error, "Informant execution failure");
 
-					let input_items = self
-						.trigger_informant(
-							super::net::InterfaceType::try_from(source.network)?,
-							serde_json::from_value::<inform::Parameters>(source.informant_parameters)
-								.map_err(inform::InformantError::from)?,
-						)
-						.await;
+				self.storage
+					.store_source_feedback_signal(SourceFeedbackSignal::FetchSignal {
+						source: source.id,
+						done_at: started_at,
+						duration,
+						failure_code: Some(error.kind()),
+						new_items_count: 0,
+						oldest_publish_at: None,
+						latest_publish_at: None,
+					})
+					.await?;
 
-					match (input_items, time::OffsetDateTime::now_utc() - started_at) {
-						(Ok(input_items), duration) => {
-							let addition_output = self.storage.add_news(source.id, input_items).await?;
-
-							self.storage
-								.store_source_feedback_signal(SourceFeedbackSignal::FetchSignal {
-									source: source.id,
-									done_at: started_at,
-									duration,
-									failure_code: None,
-									new_items_count: addition_output
-										.new
-										.len()
-										.try_into()
-										.map_err(StorageError::from)?,
-									latest_publish_at: addition_output.latest_publish,
-									oldest_publish_at: addition_output.oldest_publish,
-								})
-								.await?;
-
-							self.send_event(move || Event::NewsUpdated {
-								source_id: source.id,
-								updates: addition_output,
-							});
-						}
-						(Err(error), duration) => {
-							tracing::error!(?source.id, ?error, "Informant execution failure");
-
-							self.storage
-								.store_source_feedback_signal(SourceFeedbackSignal::FetchSignal {
-									source: source.id,
-									done_at: started_at,
-									duration,
-									failure_code: Some(error.kind()),
-									new_items_count: 0,
-									oldest_publish_at: None,
-									latest_publish_at: None,
-								})
-								.await?;
-
-							self.send_event(move || Event::InformantError {
-								source_id: source.id,
-								error: error.to_string(),
-							});
-						}
-					}
-				} else {
-					break;
-				}
+				self.send_event(move || Event::InformantError {
+					source_id: source.id,
+					error: error.to_string(),
+				});
 			}
 		}
+
+		Ok(())
+	}
+
+	/// This never returns unless fatal error occurs.
+	///
+	/// For the `notifications_receiver`, you need to get it from [`db::StorageConnection::open_notifications_channel()`] or provide your own.
+	pub async fn start_scheduler(
+		&self,
+		mut storage_notify_receiver: tokio::sync::mpsc::Receiver<db::ScheduleNotify>,
+		ml_config: ml::scheduler::Config,
+	) -> Result<(), Error> {
+		let mut scheduler = ml::scheduler::Calender::new(ml_config);
+		let mut rng = rand::rng();
+
+		let notify_new_enabled_source = tokio::sync::Notify::new();
+
+		let (run_task_sender, mut run_task_receiver) = tokio::sync::mpsc::unbounded_channel::<Vec<Uuid>>();
+		let (end_task_sender, mut end_task_receiver) = tokio::sync::mpsc::unbounded_channel::<Vec<Uuid>>();
+
+		{
+			let initial_enabled_sources = self
+				.storage
+				.get_all_sources(Some(true))
+				.await?
+				.into_iter()
+				.map(|s| s.id)
+				.collect::<Vec<Uuid>>();
+
+			// Initialize calendar with all enabled sources
+			end_task_sender.send(initial_enabled_sources).unwrap();
+		}
+
+		// Main loops
+		tokio::select! {
+			result = async {
+				loop {
+					let tasks = run_task_receiver.recv().await.unwrap();
+
+					// TODO: Execute them concurrently (will use more resources, but will be faster).
+					for source in &tasks {
+						self.trigger_informant_with_telemetry_by_source(*source).await?;
+					}
+
+					end_task_sender.send(tasks).unwrap();
+				}
+
+				#[expect(unused, reason = "for type inference")]
+				Ok::<(), Error>(())
+			} => { result? },
+			result = async {
+				loop {
+					tracing::debug!(?scheduler);
+
+					tokio::select! {
+						Some(notification) = storage_notify_receiver.recv() => {
+							match notification {
+								db::ScheduleNotify::SourceEnabled(source) => {
+									tracing::debug!(source.id=?source, "scheduling newly enabled source");
+									scheduler.schedule_source(source, &mut rng).await?;
+									notify_new_enabled_source.notify_one();
+								}
+								db::ScheduleNotify::SourceDisabled(source) => {
+									tracing::debug!(source.id=?source, "unscheduling disabled source");
+									scheduler.unschedule_fetch(source)?;
+								}
+							}
+						},
+						Some(tasks) = end_task_receiver.recv() => {
+							// NOTE: This is also used to initiate the calendar with enabled sources at the start.
+							// Reschedule source
+							for source in tasks {
+								scheduler.schedule_source(source, &mut rng).await?;
+							}
+							// NOTE: We need to reset the timer since new task might got scheduled earlier.
+						},
+						result = async {
+							let now = time::OffsetDateTime::now_utc();
+
+							match scheduler.next_time() {
+								Some(next_time) => {
+									// Sleep until next task
+									let sleep_duration = next_time - now;
+									if sleep_duration > time::Duration::ZERO {
+										// FIX: Make this sleep respect system suspend.
+										tokio::time::sleep(std::time::Duration::from_millis(sleep_duration.unsigned_abs().as_millis() as u64))
+											.await;
+									}
+
+
+									// FIX: This list might be lost when killed by ScheduleNotify.
+									// Pop all due tasks
+									let due_tasks = scheduler.pop_due(time::OffsetDateTime::now_utc());
+
+									run_task_sender.send(due_tasks).unwrap();
+								}
+								None => {
+									tracing::info!("waiting, no enabled source to schedule");
+
+									notify_new_enabled_source.notified().await;
+								}
+							}
+
+							Ok::<(), Error>(())
+						} => { result? }
+					}
+
+				}
+				#[expect(unused, reason = "for type inference")]
+				Ok::<(), Error>(())
+			} => { result? }
+		}
+
+		Ok(())
 	}
 
 	/// Create a channel to receive real-time events from the scheduler.

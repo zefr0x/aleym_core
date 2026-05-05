@@ -25,9 +25,16 @@ pub enum SortOrder {
 	Descending,
 }
 
+#[derive(Debug)]
+pub enum ScheduleNotify {
+	SourceEnabled(uuid::Uuid),
+	SourceDisabled(uuid::Uuid),
+}
+
 #[derive(Clone, Debug)]
 pub struct StorageConnection {
 	connection: DatabaseConnection,
+	schedule_notification_sender: Option<tokio::sync::mpsc::Sender<ScheduleNotify>>,
 }
 
 impl StorageConnection {
@@ -52,6 +59,40 @@ impl StorageConnection {
 
 		let connection = Database::connect(database_url).await?;
 
-		Ok(Self { connection })
+		Ok(Self {
+			connection,
+			schedule_notification_sender: None,
+		})
+	}
+
+	/// Create a channel to receive schedule notifications from the storage.
+	///
+	/// Should be closed using [`StorageConnection::close_notifications_channel()`].
+	pub fn open_notifications_channel(&mut self) -> tokio::sync::mpsc::Receiver<ScheduleNotify> {
+		let (sender, receiver) = tokio::sync::mpsc::channel::<ScheduleNotify>(1);
+
+		self.schedule_notification_sender = Some(sender);
+
+		receiver
+	}
+
+	/// Close the sender of the schedule notifications channel.
+	///
+	/// This should be used first instead of closing the receiver to prevent unnecessary attempts by the storage to send.
+	pub fn close_notifications_channel(&mut self) {
+		self.schedule_notification_sender = None;
+	}
+
+	pub(crate) async fn send_scheduler_notification(&self, notification: ScheduleNotify) {
+		if let Some(events_sender) = &self.schedule_notification_sender {
+			tracing::debug!(?notification, "sending to scheduler notification channel");
+
+			if let Err(error) = events_sender.send(notification).await {
+				tracing::error!(
+					event=?error.0,
+					"Failed to send notification due to the scheduler's receiver being closed"
+				);
+			}
+		}
 	}
 }
