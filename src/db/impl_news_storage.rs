@@ -494,4 +494,30 @@ impl StorageConnection {
 			.all(&self.connection)
 			.await?)
 	}
+
+	/// Note that it will not be assigned to other versions of the same news.
+	#[tracing::instrument(skip(self), level = tracing::Level::DEBUG)]
+	pub async fn assign_label_to_news(&self, news: Uuid, label: Uuid) -> Result<(), StorageError> {
+		let label_link = news_to_label_link::ActiveModel {
+			news_id: Set(news),
+			label_id: Set(label),
+		};
+
+		tracing::debug!("assigning label to news");
+
+		label_link.insert(&self.connection).await?;
+
+		Ok(())
+	}
+
+	#[tracing::instrument(skip(self), level = tracing::Level::DEBUG)]
+	pub async fn unassign_label_from_news(&self, news: Uuid, label: Uuid) -> Result<(), StorageError> {
+		tracing::debug!("unassigning label from news");
+
+		SourceToCategoryLink::delete_by_id((news, label))
+			.exec(&self.connection)
+			.await?;
+
+		Ok(())
+	}
 }
