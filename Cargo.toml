@@ -214,3 +214,7 @@ uuid = { version = "1", features = ["v4"] }
 [dev-dependencies]
 tokio = { workspace = true, features = ["rt", "macros"] }
 tracing-test = "0.2.6"
+
+# TODO: Remove this when `CursorTrait` impl for `SelectFour` lands in upstream.
+[patch.crates-io]
+sea-orm = { git = "https://github.com/zefr0x/sea-orm.git", branch = "cursor_by_for_select_four" }

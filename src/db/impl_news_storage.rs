@@ -26,7 +26,7 @@ pub enum BySources {
 	Identifiers(Vec<Uuid>),
 	Scope {
 		directory: Option<BySourceDirectory>,
-		categories: Vec<Uuid>,
+		categories: Option<Vec<Uuid>>,
 	},
 }
 
@@ -34,6 +34,8 @@ pub enum BySources {
 pub struct NewsFilter {
 	pub text: Option<String>,
 	pub sources: Option<BySources>,
+	pub labels: Option<Vec<Uuid>>,
+	pub is_read: Option<bool>,
 }
 
 #[cfg(feature = "_informant")]
@@ -296,9 +298,19 @@ impl StorageConnection {
 			);
 		}
 
+		if let Some(is_read) = filter.is_read {
+			condition = condition.add(news::Column::IsRead.eq(is_read));
+		}
+
 		let result = match filter.sources {
 			None => {
-				let mut stmt = News::find().filter(condition).limit(limit).cursor_by((
+				let mut stmt = News::find().filter(condition).limit(limit);
+
+				if let Some(labels) = filter.labels {
+					stmt = stmt.has_related(NewsToLabelLink, news_to_label_link::Column::LabelId.is_in(labels));
+				}
+
+				let mut stmt = stmt.cursor_by((
 					news::Column::FirstFetchedAt,
 					news::Column::PublishedAt,
 					news::Column::UpdatedAt,
@@ -322,7 +334,13 @@ impl StorageConnection {
 			Some(BySources::Identifiers(sources)) => {
 				condition = condition.add(news::Column::Source.is_in(sources));
 
-				let mut stmt = News::find().filter(condition).limit(limit).cursor_by((
+				let mut stmt = News::find().filter(condition).limit(limit);
+
+				if let Some(labels) = filter.labels {
+					stmt = stmt.has_related(NewsToLabelLink, news_to_label_link::Column::LabelId.is_in(labels));
+				}
+
+				let mut stmt = stmt.cursor_by((
 					news::Column::FirstFetchedAt,
 					news::Column::PublishedAt,
 					news::Column::UpdatedAt,
@@ -347,8 +365,8 @@ impl StorageConnection {
 				directory: directory_filter,
 				categories: categories_filter,
 			}) => {
-				if !categories_filter.is_empty() {
-					condition = condition.add(source_category::Column::Id.is_in(categories_filter));
+				if let Some(categories) = categories_filter {
+					condition = condition.add(source_category::Column::Id.is_in(categories));
 				}
 
 				if let Some(directory_filter) = directory_filter {
@@ -369,10 +387,14 @@ impl StorageConnection {
 					}
 				}
 
+				if let Some(labels) = filter.labels {
+					condition = condition.add(news_to_label_link::Column::LabelId.is_in(labels));
+				}
+
 				let mut stmt = News::find()
-					// TODO: use `has_relation`.
-					.find_also_related(Source)
-					.and_also_related(SourceCategory)
+					.find_also(News, Source)
+					.find_also(News, NewsToLabelLink)
+					.find_also(Source, SourceCategory)
 					.filter(condition)
 					.limit(limit)
 					.cursor_by((
