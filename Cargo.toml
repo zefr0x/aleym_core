@@ -148,7 +148,12 @@ wildcard_dependencies = "deny"
 wildcard_enum_match_arm = "warn"
 
 [workspace.dependencies]
-sea-orm-migration = { version = "2.0.0-rc.38", features = ["sqlx-sqlite", "runtime-tokio"] }
+# TODO: Return to upstream when `CursorTrait` impl for `SelectFour` lands.
+# Patched 2.0.0-rc.38 version of `sea-orm`.
+sea-orm-migration = { git = "https://github.com/zefr0x/sea-orm.git", rev = "d5aca7bc57e042e4222c84bda6c49f81015a0559", features = [
+	"sqlx-sqlite",
+	"runtime-tokio",
+] }
 tokio = { version = "1" }
 
 [features]
@@ -189,7 +194,9 @@ rayon = { version = "1.11", optional = true }
 rustls-platform-verifier = { version = "0.6", optional = true }
 schemars = "1.2.1"
 scraper = { version = "0.26.0", optional = true }
-sea-orm = { version = "2.0.0-rc.38", default-features = false, features = [
+# TODO: Return to upstream when `CursorTrait` impl for `SelectFour` lands.
+# Patched 2.0.0-rc.38 version of `sea-orm`.
+sea-orm = { git = "https://github.com/zefr0x/sea-orm.git", rev = "d5aca7bc57e042e4222c84bda6c49f81015a0559", default-features = false, features = [
 	"sqlx-sqlite",
 	"runtime-tokio",
 	"macros",
@@ -218,7 +225,3 @@ uuid = { version = "1", features = ["v4"] }
 [dev-dependencies]
 tokio = { workspace = true, features = ["rt", "macros"] }
 tracing-test = "0.2.6"
-
-# TODO: Remove this when `CursorTrait` impl for `SelectFour` lands in upstream.
-[patch.crates-io]
-sea-orm = { git = "https://github.com/zefr0x/sea-orm.git", branch = "cursor_by_for_select_four" }
