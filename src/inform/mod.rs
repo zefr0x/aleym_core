@@ -1,7 +1,9 @@
 mod error;
 #[cfg(feature = "informant_feedrs")]
 pub mod feedrs;
-#[cfg(feature = "informant_feedrs")]
+#[cfg(feature = "informant_telegram_web")]
+pub mod telegram_web;
+#[cfg(any(feature = "informant_feedrs", feature = "informant_telegram_web"))]
 mod utils;
 
 pub use error::*;
@@ -13,6 +15,8 @@ pub(crate) enum Type {
 	TestPlaceholder = 0,
 	#[cfg(feature = "informant_feedrs")]
 	FeedRs = 1,
+	#[cfg(feature = "informant_telegram_web")]
+	TelegramWeb = 2,
 }
 
 /// # Informant Parameters
@@ -28,6 +32,13 @@ pub enum Parameters {
 		/// # Parameters
 		feedrs::Parameters,
 	),
+	/// # Telegram Web
+	/// Scraper for telegram channels via their web interface.
+	#[cfg(feature = "informant_telegram_web")]
+	TelegramWeb(
+		/// # Parameters
+		telegram_web::Parameters,
+	),
 }
 
 impl TryFrom<i8> for Type {
@@ -39,6 +50,8 @@ impl TryFrom<i8> for Type {
 			0 => Ok(Self::TestPlaceholder),
 			#[cfg(feature = "informant_feedrs")]
 			1 => Ok(Self::FeedRs),
+			#[cfg(feature = "informant_telegram_web")]
+			2 => Ok(Self::TelegramWeb),
 			value => Err(InformantError::UnsupportedInformatIdentifier(value)),
 		}
 	}
@@ -51,6 +64,8 @@ impl From<&Parameters> for Type {
 			Parameters::TestPlaceholder => Type::TestPlaceholder,
 			#[cfg(feature = "informant_feedrs")]
 			Parameters::FeedRs(_) => Type::FeedRs,
+			#[cfg(feature = "informant_telegram_web")]
+			Parameters::TelegramWeb(_) => Type::TelegramWeb,
 		}
 	}
 }

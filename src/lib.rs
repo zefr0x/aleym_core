@@ -11,6 +11,7 @@
 //! * `net_protocol_http1` (default) -- HTTP/1.1 support
 //! * `net_protocol_http2` (default) -- HTTP/2 support
 //! * `informant_feedrs` -- build with support for RSS, ATOM, and JSON feeds
+//! * `informant_telegram_web` -- build with support for Telegram channels web scraped feeds
 
 pub mod db;
 mod error;

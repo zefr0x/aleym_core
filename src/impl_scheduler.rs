@@ -20,7 +20,7 @@ impl super::Representative {
 		network: super::net::InterfaceType,
 		informant_parameters: inform::Parameters,
 	) -> Result<Vec<InputNews>, InformantError> {
-		#[cfg(feature = "informant_feedrs")]
+		#[cfg(any(feature = "informant_feedrs", feature = "informant_telegram_web"))]
 		let network = self.network.new_client(network);
 
 		match informant_parameters {
@@ -30,6 +30,10 @@ impl super::Representative {
 			}
 			#[cfg(feature = "informant_feedrs")]
 			inform::Parameters::FeedRs(parameters) => Ok(inform::feedrs::Informant::new(network).execute(parameters).await?),
+			#[cfg(feature = "informant_telegram_web")]
+			inform::Parameters::TelegramWeb(parameters) => Ok(inform::telegram_web::Informant::new(network)
+				.execute(parameters)
+				.await?),
 		}
 	}
 
