@@ -170,6 +170,8 @@ _net_protocol_http = ["dep:hyper", "dep:hyper-util"]
 net_protocol_http1 = ["_net_protocol_http", "net_transport_tcp", "hyper/http1"]
 net_protocol_http2 = ["_net_protocol_http", "net_transport_tcp", "hyper/http2"]
 
+net_exposed_proxy_tor = ["socks5-server", "net_interface_tor", "tokio/net"]
+
 _informant = []
 informant_feedrs = ["_informant", "dep:feed-rs", "dep:rayon"]
 informant_telegram_web = ["_informant", "dep:scraper", "dep:unescaper", "dep:ammonia", "dep:rayon"]
@@ -206,6 +208,7 @@ sea-orm = { git = "https://github.com/zefr0x/sea-orm.git", rev = "d5aca7bc57e042
 sea-orm-migration = { workspace = true }
 serde = "1.0"
 serde_json = "1.0"
+socks5-server = { version = "0.10.1", optional = true }
 thiserror = "2"
 time = "0.3.47"
 tokio = { workspace = true }

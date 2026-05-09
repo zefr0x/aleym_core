@@ -1,5 +1,7 @@
 mod client;
 mod error;
+#[cfg(feature = "net_exposed_proxy_tor")]
+mod exposed_proxy;
 mod interfaces;
 pub(crate) mod protocols;
 mod transports;
@@ -14,7 +16,7 @@ pub use interfaces::Type as InterfaceType;
 /// Networking abstraction layer, handling multiple network transports.
 ///
 /// This must be the only interface to all network communications.
-pub(crate) struct Network {
+pub struct Network {
 	#[cfg(feature = "net_interface_tor")]
 	tor_client: arti_client::TorClient<tor_rtcompat::PreferredRuntime>,
 	#[cfg(feature = "net_transport_tls")]

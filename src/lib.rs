@@ -12,6 +12,7 @@
 //! * `net_protocol_http2` (default) -- HTTP/2 support
 //! * `informant_feedrs` -- build with support for RSS, ATOM, and JSON feeds
 //! * `informant_telegram_web` -- build with support for Telegram channels web scraped feeds
+//! * `net_exposed_proxy_tor` -- build with support for running a SOCKS5 proxy for the Tor network interface
 
 pub mod db;
 mod error;
@@ -28,8 +29,7 @@ pub use impl_scheduler::Event;
 pub struct Representative {
 	// TODO: Consider if this should be exposed directly or not.
 	pub storage: db::StorageConnection,
-	#[allow(unused)]
-	network: net::Network,
+	pub network: net::Network,
 	#[cfg(feature = "_informant")]
 	events_sender: Option<tokio::sync::mpsc::UnboundedSender<Event>>,
 }
