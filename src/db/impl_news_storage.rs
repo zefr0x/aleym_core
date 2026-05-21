@@ -536,7 +536,7 @@ impl StorageConnection {
 	pub async fn unassign_label_from_news(&self, news: Uuid, label: Uuid) -> Result<(), StorageError> {
 		tracing::debug!("unassigning label from news");
 
-		SourceToCategoryLink::delete_by_id((news, label))
+		NewsToLabelLink::delete_by_id((news, label))
 			.exec(&self.connection)
 			.await?;
 
