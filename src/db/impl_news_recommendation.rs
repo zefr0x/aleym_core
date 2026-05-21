@@ -120,7 +120,8 @@ impl StorageConnection {
 				news.apperance_suppression_factor=news_suppression_factor
 			);
 
-			weighted_candidates.push((index, item, source_score * news_suppression_factor));
+			// FIX: We shouldn't use clamp if all calculations have a guaranteed range.
+			weighted_candidates.push((index, item, (source_score * news_suppression_factor).clamp(0.001, 1.0)));
 		}
 
 		// Finally, sample with weighted random
@@ -128,8 +129,7 @@ impl StorageConnection {
 		// PERF: This is messy due to `sample_weighted()` returning references, there is no owned value return variant.
 
 		let sample_indexes = weighted_candidates
-			.sample_weighted(&mut rand::rng(), limit as usize, |item| item.2)
-			.unwrap()
+			.sample_weighted(&mut rand::rng(), limit as usize, |item| item.2)?
 			.map(|item| item.0)
 			.collect::<Vec<usize>>();
 

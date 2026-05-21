@@ -15,4 +15,6 @@ pub enum StorageError {
 	InvalidPercentageNumber(i8),
 	#[error("Integer conversion error occurred: {0}")]
 	IntegerConvertionError(#[from] std::num::TryFromIntError),
+	#[error("Weighted randomization error occurred: {0}")]
+	RandomWeightError(#[from] rand::distr::weighted::Error),
 }
