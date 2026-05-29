@@ -9,6 +9,7 @@ use super::{
 pub enum Event {
 	/// Indicates that a source has been fetched.
 	NewsUpdated { source_id: Uuid, updates: AddingNewsOutput },
+	// TODO: Return a real error with traceback info.
 	/// Error occurred while executing an informant.
 	InformantError { source_id: Uuid, error: String },
 }
@@ -92,6 +93,7 @@ impl super::Representative {
 				});
 			}
 			(Err(error), duration) => {
+				// TODO: Add traceback info of the error.
 				tracing::error!(?source.id, ?error, "Informant execution failure");
 
 				self.storage
@@ -171,7 +173,7 @@ impl super::Representative {
 							match notification {
 								db::ScheduleNotify::SourceEnabled(source) => {
 									tracing::debug!(source.id=?source, "scheduling newly enabled source");
-									scheduler.schedule_source(source, &mut rng).await?;
+									scheduler.schedule_source(source, &mut rng, &self.storage).await?;
 									notify_new_enabled_source.notify_one();
 								}
 								db::ScheduleNotify::SourceDisabled(source) => {
@@ -184,7 +186,7 @@ impl super::Representative {
 							// NOTE: This is also used to initiate the calendar with enabled sources at the start.
 							// Reschedule source
 							for source in tasks {
-								scheduler.schedule_source(source, &mut rng).await?;
+								scheduler.schedule_source(source, &mut rng, &self.storage).await?;
 							}
 							// NOTE: We need to reset the timer since new task might got scheduled earlier.
 						},

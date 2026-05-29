@@ -1,5 +1,5 @@
 // TODO: Create custom structs for each output when everything is clear.
-#[expect(unused)]
+#[allow(unused)]
 pub(crate) mod entities;
 mod error;
 mod impl_migration;
