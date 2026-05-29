@@ -8,35 +8,35 @@ pub struct Config {
 	/// Ranges between `0.0` and `1.0`.
 	pub feedback_freshness_bias: f32,
 
-	// Cut-off time of appearance signals to be included in calculations.
+	/// Cut-off time of appearance signals to be included in calculations.
 	pub source_appearance_cutoff: Duration,
-	// Cut-off count of appearance signals to be included in calculations.
+	/// Cut-off count of appearance signals to be included in calculations.
 	pub source_appearance_limit: u64,
 
-	// Cut-off time of appearance signals to be included in calculations.
+	/// Cut-off time of appearance signals to be included in calculations.
 	pub news_appearance_cutoff: Duration,
-	// Cut-off count of appearance signals to be included in calculations.
+	/// Cut-off count of appearance signals to be included in calculations.
 	pub news_appearance_limit: u64,
 
-	// Cut-off time of focus signals to be included in calculations.
+	/// Cut-off time of focus signals to be included in calculations.
 	pub focus_signals_cutoff: Duration,
-	// Cut-off count of focus signals to be included in calculations.
+	/// Cut-off count of focus signals to be included in calculations.
 	pub focus_signals_limit: u64,
 	/// How much to prefer focus signals against read and vote when scoring recommended news items.
 	/// Ranges between `0.0` and `1.0`.
 	pub focus_score_weight: f32,
 
-	// Cut-off time of read signals to be included in calculations.
+	/// Cut-off time of read signals to be included in calculations.
 	pub read_signals_cutoff: Duration,
-	// Cut-off count of read signals to be included in calculations.
+	/// Cut-off count of read signals to be included in calculations.
 	pub read_signals_limit: u64,
 	/// How much to prefer read signals against focus and vote when scoring recommended news items.
 	/// Ranges between `0.0` and `1.0`.
 	pub read_score_weight: f32,
 
-	// Cut-off time of vote signals to be included in calculations.
+	/// Cut-off time of vote signals to be included in calculations.
 	pub vote_signals_cutoff: Duration,
-	// Cut-off count of vote signals to be included in calculations.
+	/// Cut-off count of vote signals to be included in calculations.
 	pub vote_signals_limit: u64,
 	/// How much to prefer vote signals against focus and read when scoring recommended news items.
 	/// Ranges between `0.0` and `1.0`.
