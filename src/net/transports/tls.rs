@@ -10,7 +10,7 @@ pub enum AlpnProtocols {
 	Fallback,
 }
 
-pub trait Transport: super::tcp::Transport {
+pub(crate) trait Transport: super::tcp::Transport {
 	fn tls_config(&self) -> Arc<tokio_rustls::rustls::ClientConfig>;
 
 	async fn connect(
