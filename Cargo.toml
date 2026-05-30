@@ -1,6 +1,6 @@
 [package]
 name = "aleym_core"
-version = "0.1.0-alpha.2"
+version = "0.1.0-alpha.3"
 authors = ["zefr0x"]
 edition = "2024"
 description = "Extensible news aggregation and knowledge-base engine (Core Library Component of Aleym)"
