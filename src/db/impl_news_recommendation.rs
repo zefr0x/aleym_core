@@ -144,3 +144,177 @@ impl StorageConnection {
 			.collect())
 	}
 }
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use time::{Duration, OffsetDateTime};
+	use tracing_test::traced_test;
+
+	#[cfg(feature = "_informant")]
+	pub async fn setup_news_items(con: &StorageConnection, now: OffsetDateTime) {
+		let root = con
+			.create_source_directory(None, "Root".to_owned(), None)
+			.await
+			.unwrap();
+		let source_id = con
+			.add_source(
+				root,
+				crate::inform::Parameters::TestPlaceholder,
+				crate::net::InterfaceType::TestPlaceholder,
+				"Test Source".to_owned(),
+				None,
+				true,
+			)
+			.await
+			.unwrap();
+
+		let items = vec![
+			super::super::impl_news_storage::InputNews {
+				source_provided_id: None,
+				uri: Some("https://example.com/1".to_owned()),
+				title: "News 1".to_owned(),
+				summary: None,
+				content: None,
+				published_at: None,
+				updated_at: None,
+			},
+			super::super::impl_news_storage::InputNews {
+				source_provided_id: None,
+				uri: Some("https://example.com/2".to_owned()),
+				title: "News 2".to_owned(),
+				summary: None,
+				content: None,
+				published_at: None,
+				updated_at: None,
+			},
+			super::super::impl_news_storage::InputNews {
+				source_provided_id: None,
+				uri: Some("https://example.com/3".to_owned()),
+				title: "News 3".to_owned(),
+				summary: None,
+				content: None,
+				published_at: None,
+				updated_at: None,
+			},
+		];
+		let news_output = con.add_news(source_id, items).await.unwrap();
+		let news1_id = news_output.new[0];
+		let news2_id = news_output.new[1];
+		let news3_id = news_output.new[2];
+
+		// Create feedback signals
+
+		con.store_user_feedback_signal(crate::db::UserFeedbackSignal::NewsApearanceSignal {
+			news: news1_id,
+			happened_at: now - Duration::seconds(500),
+			duration: Duration::minutes(2),
+		})
+		.await
+		.unwrap();
+		con.store_user_feedback_signal(crate::db::UserFeedbackSignal::NewsApearanceSignal {
+			news: news3_id,
+			happened_at: now - Duration::seconds(500),
+			duration: Duration::minutes(2),
+		})
+		.await
+		.unwrap();
+		con.store_user_feedback_signal(crate::db::UserFeedbackSignal::NewsApearanceSignal {
+			news: news1_id,
+			happened_at: now - Duration::seconds(100),
+			duration: Duration::minutes(1),
+		})
+		.await
+		.unwrap();
+		con.store_user_feedback_signal(crate::db::UserFeedbackSignal::NewsApearanceSignal {
+			news: news2_id,
+			happened_at: now - Duration::seconds(101),
+			duration: Duration::ZERO,
+		})
+		.await
+		.unwrap();
+		con.store_user_feedback_signal(crate::db::UserFeedbackSignal::NewsApearanceSignal {
+			news: news2_id,
+			happened_at: now - Duration::seconds(100),
+			duration: Duration::minutes(1),
+		})
+		.await
+		.unwrap();
+
+		con.store_user_feedback_signal(crate::db::UserFeedbackSignal::NewsFocusSignal {
+			news: news1_id,
+			done_at: now - Duration::seconds(450),
+			duration: Duration::seconds(3),
+		})
+		.await
+		.unwrap();
+		con.store_user_feedback_signal(crate::db::UserFeedbackSignal::NewsFocusSignal {
+			news: news2_id,
+			done_at: now - Duration::seconds(71),
+			duration: Duration::ZERO,
+		})
+		.await
+		.unwrap();
+		con.store_user_feedback_signal(crate::db::UserFeedbackSignal::NewsFocusSignal {
+			news: news2_id,
+			done_at: now - Duration::seconds(70),
+			duration: Duration::seconds(2),
+		})
+		.await
+		.unwrap();
+
+		con.store_user_feedback_signal(crate::db::UserFeedbackSignal::NewsReadSignal {
+			news: news1_id,
+			done_at: now - Duration::seconds(447),
+			duration: Duration::seconds(25),
+			scroll_depth_percentage: 100,
+		})
+		.await
+		.unwrap();
+		con.store_user_feedback_signal(crate::db::UserFeedbackSignal::NewsReadSignal {
+			news: news1_id,
+			done_at: OffsetDateTime::UNIX_EPOCH,
+			duration: Duration::ZERO,
+			scroll_depth_percentage: 0,
+		})
+		.await
+		.unwrap();
+		con.set_news_read(vec![news1_id], true).await.unwrap();
+
+		con.store_user_feedback_signal(crate::db::UserFeedbackSignal::NewsExplicitVoteSignal {
+			news: news2_id,
+			done_at: now - Duration::seconds(67),
+			is_up_vote: true,
+		})
+		.await
+		.unwrap();
+		con.store_user_feedback_signal(crate::db::UserFeedbackSignal::NewsExplicitVoteSignal {
+			news: news2_id,
+			done_at: now - Duration::seconds(67),
+			is_up_vote: true,
+		})
+		.await
+		.unwrap();
+	}
+
+	#[cfg(feature = "_informant")]
+	#[tokio::test]
+	#[traced_test]
+	async fn news_recommendations_logic() {
+		let con = crate::db::impl_migration::tests::test_connection_and_migrations().await;
+
+		let config = crate::ml::recommendation::Config::default();
+
+		assert!(con.get_news_recommendations(5, 15, &config).await.unwrap().is_empty());
+
+		setup_news_items(&con, OffsetDateTime::now_utc()).await;
+
+		let recommendations = con.get_news_recommendations(10, 30, &config).await.unwrap();
+		assert!(!recommendations.is_empty());
+		assert!(recommendations.len() <= 3);
+		for news in recommendations {
+			assert!(!news.is_read);
+			assert!(news.is_latest_version);
+		}
+	}
+}
