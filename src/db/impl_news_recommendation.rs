@@ -120,8 +120,7 @@ impl StorageConnection {
 				news.apperance_suppression_factor=news_suppression_factor
 			);
 
-			// FIX: We shouldn't use clamp if all calculations have a guaranteed range.
-			weighted_candidates.push((index, item, (source_score * news_suppression_factor).clamp(0.001, 1.0)));
+			weighted_candidates.push((index, item, (source_score * news_suppression_factor)));
 		}
 
 		// Finally, sample with weighted random

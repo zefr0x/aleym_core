@@ -185,8 +185,10 @@ impl RecommendationWeighter {
 
 				let focus_duration = signal.duration as f32 / 1000.0; // Seconds
 
-				// TODO: Find the optimal rate or make it configurable.
-				focus_sum += time_since / focus_duration;
+				if focus_duration > 0.0 {
+					// TODO: Find the optimal rate or make it configurable.
+					focus_sum += time_since / focus_duration;
+				}
 			}
 		}
 
@@ -199,8 +201,10 @@ impl RecommendationWeighter {
 				let scroll_depth = signal.scroll_depth_percentage as f32 / 100.0;
 				let read_duration = signal.duration as f32 / 1000.0; // Seconds
 
-				// TODO: Find the optimal rate or make it configurable.
-				read_sum += time_since / (read_duration * scroll_depth);
+				if scroll_depth > 0.0 {
+					// TODO: Find the optimal rate or make it configurable.
+					read_sum += time_since / (read_duration * scroll_depth);
+				}
 			}
 		}
 
