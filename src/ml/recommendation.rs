@@ -54,10 +54,10 @@ impl Default for Config {
 			news_appearance_limit: 1000,
 			focus_signals_cutoff: Duration::days(30),
 			focus_signals_limit: 1000,
-			focus_score_weight: 0.15,
+			focus_score_weight: 0.10,
 			read_signals_cutoff: Duration::days(30),
 			read_signals_limit: 1000,
-			read_score_weight: 0.45,
+			read_score_weight: 0.40,
 			vote_signals_cutoff: Duration::days(30),
 			vote_signals_limit: 1000,
 			vote_score_weight: 0.5,
@@ -177,6 +177,10 @@ impl RecommendationWeighter {
 			sea_orm::SelectModel<db::entities::news_apearance_signal::Model>,
 		>,
 	) -> Result<f32, db::StorageError> {
+		if self.config.focus_score_weight + self.config.read_score_weight + self.config.vote_score_weight > 1.0 {
+			Err(db::StorageError::InvalidWeightsSum)?;
+		}
+
 		let mut focus_sum = 0.0f32;
 
 		while let Some(signals) = focus_signals_paginator.fetch_and_next().await? {

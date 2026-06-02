@@ -17,4 +17,6 @@ pub enum StorageError {
 	IntegerConvertionError(#[from] std::num::TryFromIntError),
 	#[error("Weighted randomization error occurred: {0}")]
 	RandomWeightError(#[from] rand::distr::weighted::Error),
+	#[error("Configured weights doesn't sum to `1.0`")]
+	InvalidWeightsSum,
 }

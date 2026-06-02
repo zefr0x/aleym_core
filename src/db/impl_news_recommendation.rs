@@ -303,11 +303,19 @@ mod tests {
 	async fn news_recommendations_logic() {
 		let con = crate::db::impl_migration::tests::test_connection_and_migrations().await;
 
+		let invalid_config = crate::ml::recommendation::Config {
+			focus_score_weight: 0.3,
+			read_score_weight: 0.5,
+			vote_score_weight: 0.3,
+			..Default::default()
+		};
 		let config = crate::ml::recommendation::Config::default();
 
 		assert!(con.get_news_recommendations(5, 15, &config).await.unwrap().is_empty());
 
 		setup_news_items(&con, OffsetDateTime::now_utc()).await;
+
+		con.get_news_recommendations(5, 15, &invalid_config).await.unwrap_err();
 
 		let recommendations = con.get_news_recommendations(10, 30, &config).await.unwrap();
 		assert!(!recommendations.is_empty());
