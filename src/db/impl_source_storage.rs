@@ -525,8 +525,7 @@ pub(crate) mod tests {
 			con.get_all_directories()
 				.await
 				.expect("Coudn't find any directory")
-				.iter()
-				.count(),
+				.len(),
 			5
 		);
 
@@ -538,8 +537,7 @@ pub(crate) mod tests {
 			con.get_all_directories()
 				.await
 				.expect("There is not directory in the database")
-				.iter()
-				.count(),
+				.len(),
 			4
 		);
 
@@ -594,11 +592,33 @@ pub(crate) mod tests {
 		.await
 		.expect("Failed to change source name");
 
-		assert_eq!(con.get_all_sources(None).await.unwrap().iter().count(), 3);
+		con.edit_source(
+			sources1.first().unwrap().id,
+			NotSet,
+			Set(super::net::InterfaceType::TestPlaceholder),
+			NotSet,
+			NotSet,
+			NotSet,
+		)
+		.await
+		.expect("Failed to change source network");
+
+		con.edit_source(sources1.first().unwrap().id, NotSet, NotSet, NotSet, NotSet, Set(false))
+			.await
+			.expect("Failed to disable source");
+
+		assert_eq!(con.get_all_sources(Some(true)).await.unwrap().len(), 1);
+		assert_eq!(con.get_all_sources(Some(false)).await.unwrap().len(), 2);
+
+		con.edit_source(sources1.first().unwrap().id, NotSet, NotSet, NotSet, NotSet, Set(true))
+			.await
+			.expect("Failed to enable source");
+
+		assert_eq!(con.get_all_sources(None).await.unwrap().len(), 3);
 		con.delete_source(sources2.first().unwrap().id)
 			.await
 			.expect("Failed to delete source");
-		assert_eq!(con.get_all_sources(None).await.unwrap().iter().count(), 2);
+		assert_eq!(con.get_all_sources(None).await.unwrap().len(), 2);
 
 		con.assign_category_to_source(sources1.first().unwrap().id, categories.first().unwrap().id)
 			.await
