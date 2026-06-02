@@ -102,24 +102,16 @@ mod tests {
 	#[cfg(all(
 		any(feature = "net_interface_clear", feature = "net_interface_tor"),
 		feature = "net_transport_tls",
-		feature = "net_protocol_http1"
+		any(feature = "net_protocol_http1", feature = "net_protocol_http2")
 	))]
 	#[tokio::test]
 	#[tracing_test::traced_test]
-	async fn networking_http1_tls() {
+	async fn networking_http_tls() {
 		use http_body_util::BodyExt;
 
 		use super::{InterfaceType, Network};
 
 		let network = Network::new().await.unwrap();
-
-		let target = hyper::Uri::from_static("https://check.torproject.org/api/ip");
-		let request = hyper::Request::builder()
-			.header(hyper::header::HOST, target.authority().unwrap().as_str())
-			.uri(&target)
-			.method(hyper::Method::GET)
-			.body(http_body_util::Empty::<hyper::body::Bytes>::new())
-			.unwrap();
 
 		let mut tasks = tokio::task::JoinSet::new();
 
@@ -129,10 +121,17 @@ mod tests {
 			#[cfg(feature = "net_interface_tor")]
 			InterfaceType::Tor,
 		] {
-			let client = network.new_client(interface);
-
+			#[cfg(feature = "net_protocol_http1")]
 			tasks.spawn({
-				let request = request.clone();
+				let client = network.new_client(interface);
+
+				let target = hyper::Uri::from_static("https://check.torproject.org/api/ip");
+				let request = hyper::Request::builder()
+					.header(hyper::header::HOST, target.authority().unwrap().as_str())
+					.uri(&target)
+					.method(hyper::Method::GET)
+					.body(http_body_util::Empty::<hyper::body::Bytes>::new())
+					.unwrap();
 
 				async move {
 					let resp = client.http_request(request, false).await.unwrap();
@@ -149,7 +148,35 @@ mod tests {
 					let body_bytes = resp.collect().await.unwrap().to_bytes();
 					let body_str = std::str::from_utf8(&body_bytes).unwrap();
 
+					#[cfg(feature = "net_interface_tor")]
 					assert!(body_str.contains(&format!("\"IsTor\":{}", interface == InterfaceType::Tor)));
+					#[cfg(not(feature = "net_interface_tor"))]
+					assert!(body_str.contains(&format!("\"IsTor\":{}", false)));
+				}
+			});
+
+			#[cfg(feature = "net_protocol_http2")]
+			tasks.spawn({
+				let client = network.new_client(interface);
+
+				let target = hyper::Uri::from_static("https://one.one.one.one");
+				let request = hyper::Request::builder()
+					.header(hyper::header::HOST, target.authority().unwrap().as_str())
+					.uri(&target)
+					.method(hyper::Method::GET)
+					.body(http_body_util::Empty::<hyper::body::Bytes>::new())
+					.unwrap();
+
+				async move {
+					let resp = client.http_request(request, true).await.unwrap();
+
+					// Assert HTTP headers
+					assert_eq!(resp.status().as_u16(), 200);
+					assert_eq!(resp.version(), hyper::Version::HTTP_2);
+					assert_eq!(
+						resp.headers().get("content-type"),
+						Some(&hyper::header::HeaderValue::from_static("text/html; charset=utf-8"))
+					);
 				}
 			});
 		}
