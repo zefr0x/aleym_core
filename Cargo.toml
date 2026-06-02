@@ -178,11 +178,11 @@ informant_telegram_web = ["_informant", "dep:scraper", "dep:unescaper", "dep:amm
 
 [dependencies]
 ammonia = { version = "4.1.2", optional = true }
-# TODO: Enable `onion-service-client` feature when it's security enough.
 arti-client = { version = "0.43.0", default-features = false, features = [
 	"compression",
 	"rustls",
 	"tokio",
+	"onion-service-client",
 ], optional = true }
 cfg-if = "1.0"
 feed-rs = { version = "2.3.1", features = ["sanitize"], optional = true }
