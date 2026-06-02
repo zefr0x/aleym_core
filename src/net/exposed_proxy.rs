@@ -34,7 +34,7 @@ impl Network {
 	}
 
 	async fn handle_connection(
-		tor_client: arti_client::TorClient<tor_rtcompat::PreferredRuntime>,
+		tor_client: Arc<arti_client::TorClient<tor_rtcompat::PreferredRuntime>>,
 		conn: IncomingConnection<(), NeedAuthenticate>,
 	) -> Result<(), Error> {
 		let conn = match conn.authenticate().await {

@@ -18,7 +18,7 @@ pub use interfaces::Type as InterfaceType;
 /// This must be the only interface to all network communications.
 pub struct Network {
 	#[cfg(feature = "net_interface_tor")]
-	tor_client: arti_client::TorClient<tor_rtcompat::PreferredRuntime>,
+	tor_client: Arc<arti_client::TorClient<tor_rtcompat::PreferredRuntime>>,
 	#[cfg(feature = "net_transport_tls")]
 	tls_config: Arc<tokio_rustls::rustls::ClientConfig>,
 }

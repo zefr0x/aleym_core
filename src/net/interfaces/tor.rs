@@ -7,7 +7,7 @@ use crate::net::transports::tls;
 use crate::net::transports::{AsyncStream, tcp};
 
 pub struct TorInterface {
-	client: arti_client::TorClient<tor_rtcompat::PreferredRuntime>,
+	client: Arc<arti_client::TorClient<tor_rtcompat::PreferredRuntime>>,
 	#[cfg(feature = "net_transport_tls")]
 	tls_config: Arc<tokio_rustls::rustls::ClientConfig>,
 }
@@ -35,7 +35,7 @@ impl tls::Transport for TorInterface {
 
 impl TorInterface {
 	pub fn new(
-		tor_client: arti_client::TorClient<tor_rtcompat::PreferredRuntime>,
+		tor_client: Arc<arti_client::TorClient<tor_rtcompat::PreferredRuntime>>,
 		#[cfg(feature = "net_transport_tls")] tls: Arc<tokio_rustls::rustls::ClientConfig>,
 	) -> Self {
 		Self {

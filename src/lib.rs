@@ -14,6 +14,12 @@
 //! * `informant_telegram_web` -- build with support for Telegram channels web scraped feeds
 //! * `net_exposed_proxy_tor` -- build with support for running a SOCKS5 proxy for the Tor network interface
 
+// FIX: Consider if we can improve the design to avoid this.
+#![cfg_attr(
+	all(feature = "net_transport_tls", feature = "net_interface_tor"),
+	recursion_limit = "134"
+)]
+
 pub mod db;
 mod error;
 #[cfg(feature = "_informant")]
