@@ -225,7 +225,8 @@ impl StorageConnection {
 		cutoff_time: time::OffsetDateTime,
 		limit: u64,
 	) -> Result<Paginator<'db, DatabaseConnection, SelectModel<news_apearance_signal::Model>>, StorageError> {
-		Ok(NewsApearanceSignal::find_by_id(news)
+		Ok(NewsApearanceSignal::find()
+			.has_related(News, news::Column::Id.eq(news))
 			.filter(news_apearance_signal::Column::HappenedAt.gte(cutoff_time))
 			.limit(limit)
 			.paginate(&self.connection, 100))
