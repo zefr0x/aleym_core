@@ -102,3 +102,57 @@ impl super::InformantTrait for Informant {
 		utils::spawn_cpu_blocking(move || Self::parse(&response_bytes)).await?
 	}
 }
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	const EXAMPLE_RSS: &[u8] = include_bytes!("../../test/assets/example_rss_feed.rss");
+
+	#[tokio::test]
+	#[tracing_test::traced_test]
+	async fn parsing_rss() {
+		let news = Informant::parse(&http::body::Bytes::from_static(EXAMPLE_RSS)).unwrap();
+
+		assert_eq!(news.len(), 5);
+
+		let first = news.first().unwrap();
+		let last = news.last().unwrap();
+
+		assert_eq!(
+			&first.title,
+			"Louisiana Students to Hear from NASA Astronauts Aboard Space Station"
+		);
+		assert_eq!(
+			first.uri,
+			Some("http://www.nasa.gov/press-release/louisiana-students-to-hear-from-nasa-astronauts-aboard-space-station".to_owned())
+		);
+		assert_eq!(
+			first.summary,
+			Some("As part of the state's first Earth-to-space call, students from Louisiana will have an opportunity soon to hear from NASA astronauts aboard the International Space Station.".to_owned())
+		);
+		assert_eq!(first.published_at, Some(time::macros::datetime!(2023-07-21 9:04 -4)));
+		assert_eq!(
+			first.source_provided_id,
+			Some("http://www.nasa.gov/press-release/louisiana-students-to-hear-from-nasa-astronauts-aboard-space-station".to_owned())
+		);
+
+		assert_eq!(
+			&last.title,
+			"NASA Plans Coverage of Roscosmos Spacewalk Outside Space Station"
+		);
+		assert_eq!(
+			last.uri,
+			Some("http://liftoff.msfc.nasa.gov/news/2003/news-laundry.asp".to_owned())
+		);
+		assert_eq!(
+			last.summary,
+			Some("Compared to earlier spacecraft, the International Space Station has many luxuries, but laundry facilities are not one of them.  Instead, astronauts have other options.".to_owned())
+		);
+		assert_eq!(last.published_at, Some(time::macros::datetime!(2023-6-26 12:45 -4)));
+		assert_eq!(
+			last.source_provided_id,
+			Some("http://liftoff.msfc.nasa.gov/2003/05/20.html#item570".to_owned())
+		);
+	}
+}

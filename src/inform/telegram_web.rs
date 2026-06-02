@@ -176,3 +176,51 @@ impl super::InformantTrait for Informant {
 		.await?
 	}
 }
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	const EXAMPLE_FEED: &[u8] = include_bytes!("../../test/assets/example_telegram_channel_feed.html");
+
+	#[tokio::test]
+	#[tracing_test::traced_test]
+	async fn parsing_telegram_web() {
+		let news = Informant::parse(
+			str::from_utf8(&http::body::Bytes::from_static(EXAMPLE_FEED)).unwrap(),
+			"telegram",
+		)
+		.unwrap();
+
+		assert_eq!(news.len(), 20);
+
+		let first = news.first().unwrap();
+		let last = news.last().unwrap();
+
+		dbg!(first, last);
+
+		assert_eq!(
+			&first.title,
+			"New Design.fully redesigned interface even quickermore responsive"
+		);
+		assert_eq!(first.uri, Some("https://t.me/telegram/425".to_owned()));
+		assert_eq!(first.summary, None,);
+		assert_eq!(
+			first.published_at,
+			Some(time::macros::datetime!(2026-02-10 17:43:45.0 +00))
+		);
+		assert_eq!(first.source_provided_id, Some("telegram/425".to_owned()));
+
+		assert_eq!(
+			&last.title,
+			"statisticscustom limitsstreaming textsilent scheduled messages"
+		);
+		assert_eq!(last.uri, Some("https://t.me/telegram/445".to_owned()));
+		assert_eq!(last.summary, None,);
+		assert_eq!(
+			last.published_at,
+			Some(time::macros::datetime!(2026-05-14 16:09:50.0 +00))
+		);
+		assert_eq!(last.source_provided_id, Some("telegram/445".to_owned()));
+	}
+}
