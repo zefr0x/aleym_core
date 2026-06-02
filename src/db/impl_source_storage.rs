@@ -405,7 +405,7 @@ impl StorageConnection {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
 	use super::StorageConnection;
 	use sea_orm::{
 		ActiveValue::{NotSet, Set},

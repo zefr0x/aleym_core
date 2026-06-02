@@ -543,3 +543,262 @@ impl StorageConnection {
 		Ok(())
 	}
 }
+
+#[cfg(test)]
+mod tests {
+	use tracing_test::traced_test;
+
+	#[cfg(feature = "_informant")]
+	#[tokio::test]
+	#[traced_test]
+	async fn news_storage_logic() {
+		use super::*;
+
+		let con = crate::db::impl_migration::tests::test_connection_and_migrations().await;
+
+		// Set up directories
+
+		crate::db::impl_source_storage::tests::setup_direcotries(&con).await;
+		let roots = con
+			.get_root_directories()
+			.await
+			.expect("Failed to get root directories");
+		let root_directory2 = roots.get(1).expect("Faield to get second root direcotory").id;
+		let grand_childs = con
+			.get_directories_by_parent(
+				con.get_directories_by_parent(root_directory2, false)
+					.await
+					.expect("Failed to get root direcotry's childs")
+					.first()
+					.unwrap()
+					.id,
+				false,
+			)
+			.await
+			.expect("Failed to get childs of a child direcotry");
+
+		// Set up sources
+
+		crate::db::impl_source_storage::tests::setup_sources(
+			&con,
+			grand_childs.first().unwrap().id,
+			grand_childs.last().unwrap().id,
+		)
+		.await;
+
+		let source1 = con.get_all_sources(None).await.unwrap().into_iter().next().unwrap();
+
+		// Set up categories
+
+		crate::db::impl_source_storage::tests::setup_categories(&con).await;
+		let category1 = con.get_all_categories().await.unwrap().into_iter().next().unwrap();
+		con.assign_category_to_source(source1.id, category1.id).await.unwrap();
+
+		// Set up news items
+
+		let now = time::OffsetDateTime::now_utc();
+
+		let news1 = InputNews {
+			source_provided_id: Some("123456".to_owned()),
+			uri: None,
+			title: "test title".to_owned(),
+			summary: None,
+			content: None,
+			published_at: Some(now),
+			updated_at: None,
+		};
+		let news1_updated = InputNews {
+			source_provided_id: Some("123456".to_owned()),
+			uri: None,
+			title: "test title 2".to_owned(),
+			summary: None,
+			content: None,
+			published_at: Some(now + time::Duration::seconds(2)),
+			updated_at: None,
+		};
+		let news1_updated2 = InputNews {
+			source_provided_id: Some("123456".to_owned()),
+			uri: None,
+			title: "test title 3".to_owned(),
+			summary: None,
+			content: None,
+			published_at: Some(time::OffsetDateTime::now_utc() + time::Duration::days(1)),
+			updated_at: None,
+		};
+		let news2 = InputNews {
+			source_provided_id: Some("111111".to_owned()),
+			uri: None,
+			title: "test title 4".to_owned(),
+			summary: None,
+			content: None,
+			published_at: Some(time::OffsetDateTime::now_utc() - time::Duration::days(3)),
+			updated_at: None,
+		};
+		let news3 = InputNews {
+			source_provided_id: None,
+			uri: None,
+			title: "test title 4".to_owned(),
+			summary: None,
+			content: None,
+			published_at: Some(time::OffsetDateTime::now_utc() - time::Duration::days(4)),
+			updated_at: None,
+		};
+
+		let news_ids = con
+			.add_news(source1.id, vec![news1_updated, news1, news2.clone()])
+			.await
+			.unwrap();
+		con.add_news(source1.id, vec![news1_updated2.clone()]).await.unwrap();
+		con.add_news(source1.id, vec![news2, news3.clone()]).await.unwrap();
+		let news_ids2 = con.add_news(source1.id, vec![news3]).await.unwrap();
+		let news3_id = news_ids2.touched.first().unwrap();
+
+		con.set_news_read(news_ids.new.clone(), true).await.unwrap();
+
+		// Set up labels
+
+		let label_id = con.create_news_label("My Label".to_owned(), None).await.unwrap();
+		let label_id2 = con.create_news_label("My Label 2".to_owned(), None).await.unwrap();
+
+		// Test labels
+
+		assert_eq!(label_id2, con.get_news_label(label_id2).await.unwrap().id);
+
+		for news in &news_ids.new {
+			con.assign_label_to_news(*news, label_id).await.unwrap();
+		}
+
+		con.assign_label_to_news(*news3_id, label_id2).await.unwrap();
+		con.unassign_label_from_news(*news3_id, label_id2).await.unwrap();
+
+		assert!(
+			con.get_labels_of_news(*news_ids.new.first().unwrap())
+				.await
+				.unwrap()
+				.iter()
+				.map(|label| { label.id })
+				.collect::<Vec<Uuid>>()
+				.contains(&label_id)
+		);
+
+		con.edit_news_label(
+			label_id,
+			Set("My Label Updated".to_owned()),
+			Set(Some("Example description".to_owned())),
+		)
+		.await
+		.unwrap();
+
+		assert_eq!(con.get_all_news_labels().await.unwrap().len(), 2);
+		con.delete_news_label(label_id2).await.unwrap();
+		assert_eq!(con.get_all_news_labels().await.unwrap().len(), 1);
+
+		// Get news by its id
+		con.get_news(*news_ids.new.last().unwrap()).await.unwrap();
+
+		// Get news with filters
+
+		assert_eq!(
+			con.get_news_with_filter(
+				NewsFilter {
+					text: Some("test".to_owned()),
+					sources: None,
+					labels: Some(vec![label_id]),
+					is_read: Some(true)
+				},
+				SortOrder::Descending,
+				TIME_MIN,
+				TIME_MAX,
+				6,
+			)
+			.await
+			.unwrap()
+			.len(),
+			1
+		);
+		assert_eq!(
+			con.get_news_with_filter(
+				NewsFilter {
+					text: Some("test".to_owned()),
+					sources: Some(BySources::Identifiers(vec![source1.id])),
+					labels: Some(vec![label_id]),
+					is_read: Some(true)
+				},
+				SortOrder::Descending,
+				TIME_MIN,
+				TIME_MAX,
+				6,
+			)
+			.await
+			.unwrap()
+			.len(),
+			1
+		);
+		assert_eq!(
+			con.get_news_with_filter(
+				NewsFilter {
+					text: None,
+					sources: Some(BySources::Identifiers(vec![source1.id])),
+					labels: None,
+					is_read: None,
+				},
+				SortOrder::Ascending,
+				TIME_MIN,
+				TIME_MAX,
+				6,
+			)
+			.await
+			.unwrap()
+			.len(),
+			3
+		);
+		assert_eq!(
+			con.get_news_with_filter(
+				NewsFilter {
+					text: Some("test".to_owned()),
+					sources: Some(BySources::Scope {
+						directory: Some(BySourceDirectory {
+							parent_directory: root_directory2,
+							recursive: true
+						}),
+						categories: Some(vec![category1.id]),
+					}),
+					labels: Some(vec![label_id]),
+					is_read: Some(false)
+				},
+				SortOrder::Descending,
+				TIME_MIN,
+				TIME_MAX,
+				6,
+			)
+			.await
+			.unwrap()
+			.len(),
+			0
+		);
+		assert_eq!(
+			con.get_news_with_filter(
+				NewsFilter {
+					text: Some("test".to_owned()),
+					sources: Some(BySources::Scope {
+						directory: Some(BySourceDirectory {
+							parent_directory: root_directory2,
+							recursive: false
+						}),
+						categories: None,
+					}),
+					labels: Some(vec![label_id]),
+					is_read: Some(true)
+				},
+				SortOrder::Ascending,
+				TIME_MIN,
+				TIME_MAX,
+				6,
+			)
+			.await
+			.unwrap()
+			.len(),
+			0
+		);
+	}
+}
