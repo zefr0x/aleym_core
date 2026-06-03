@@ -291,3 +291,46 @@ impl Calender {
 		Ok(())
 	}
 }
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use time::OffsetDateTime;
+
+	#[test]
+	fn calender_logic() {
+		let config = Config::default();
+
+		let mut calendar = Calender::new(config);
+
+		assert!(calendar.next_time().is_none());
+		assert!(calendar.pop_due(OffsetDateTime::now_utc()).is_empty());
+
+		let now = OffsetDateTime::now_utc();
+
+		let uuid1 = Uuid::new_v4();
+		let uuid2 = Uuid::new_v4();
+		let uuid3 = Uuid::new_v4();
+
+		calendar.calendar.insert(now + Duration::hours(2), vec![uuid1]);
+		calendar.calendar.insert(now + Duration::hours(1), vec![uuid2]);
+
+		assert_eq!(calendar.next_time(), Some(now + Duration::hours(1)));
+
+		let due = calendar.pop_due(now + Duration::minutes(65));
+
+		assert_eq!(due.len(), 1);
+		assert!(due.contains(&uuid2));
+		assert!(!calendar.calendar.is_empty());
+
+		let result = calendar.unschedule_fetch(uuid3);
+		assert!(result.is_err());
+		match result {
+			Err(SchedulerError::SourceNotScheduled(id)) => assert_eq!(id, uuid3),
+			_ => panic!("Expected SourceNotScheduled"),
+		}
+
+		calendar.unschedule_fetch(uuid1).unwrap();
+		assert!(calendar.calendar.is_empty());
+	}
+}
