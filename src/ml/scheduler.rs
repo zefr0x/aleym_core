@@ -288,6 +288,10 @@ impl Calender {
 			.ok_or(SchedulerError::SourceNotScheduled(source))?
 			.remove(entry.1);
 
+		if self.calendar.get(&entry.0).unwrap().is_empty() {
+			self.calendar.remove(&entry.0).unwrap();
+		}
+
 		Ok(())
 	}
 }
