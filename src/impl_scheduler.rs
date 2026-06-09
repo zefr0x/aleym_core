@@ -1,3 +1,5 @@
+use tracing::Instrument;
+
 use super::{
 	Error,
 	db::{self, AddingNewsOutput, InputNews, SourceFeedbackSignal, StorageError, uuid::Uuid},
@@ -134,6 +136,9 @@ impl super::Representative {
 		let (run_task_sender, mut run_task_receiver) = tokio::sync::mpsc::unbounded_channel::<Vec<Uuid>>();
 		let (end_task_sender, mut end_task_receiver) = tokio::sync::mpsc::unbounded_channel::<Vec<Uuid>>();
 
+		let task_ender_blocks_exit = std::sync::atomic::AtomicBool::new(false);
+		let task_ender_blocks_exit_notify = tokio::sync::Notify::new();
+
 		{
 			let initial_enabled_sources = self
 				.storage
@@ -144,32 +149,47 @@ impl super::Representative {
 				.collect::<Vec<Uuid>>();
 
 			// Initialize calendar with all enabled sources
-			end_task_sender.send(initial_enabled_sources).unwrap();
+			if !initial_enabled_sources.is_empty() {
+				tracing::trace!("sending all initially enabled sources to the end_task channel to get scheduled");
+
+				task_ender_blocks_exit.store(true, std::sync::atomic::Ordering::Relaxed);
+				end_task_sender.send(initial_enabled_sources).unwrap();
+			}
 		}
+
+		tracing::trace!("entering scheduler");
 
 		// Main loops
 		tokio::select! {
 			result = async {
+				tracing::trace!("entering scheduler task running loop");
+
 				loop {
 					let tasks = run_task_receiver.recv().await.unwrap();
+
+					tracing::trace!(?tasks, "recived tasks to run");
 
 					// TODO: Execute them concurrently (will use more resources, but will be faster).
 					for source in &tasks {
 						self.trigger_informant_with_telemetry_by_source(*source).await?;
 					}
 
+					tracing::trace!(?tasks, "sending an end_task signal");
 					end_task_sender.send(tasks).unwrap();
 				}
 
 				#[expect(unused, reason = "for type inference")]
 				Ok::<(), Error>(())
-			} => { result? },
+			}.instrument(tracing::trace_span!(parent: tracing::Span::current(), "SchedulerTaskRunningLoopBranch")) => { result? },
 			result = async {
+				tracing::trace!("entering scheduler main loop");
+
 				loop {
 					tracing::debug!(?scheduler);
 
 					tokio::select! {
 						Some(notification) = storage_notify_receiver.recv() => {
+							// TODO: Have a source enabler/disabler exit blocker?
 							match notification {
 								db::ScheduleNotify::SourceEnabled(source) => {
 									tracing::debug!(source.id=?source, "scheduling newly enabled source");
@@ -181,20 +201,34 @@ impl super::Representative {
 									scheduler.unschedule_fetch(source)?;
 								}
 							}
+
+							loop {
+								if !task_ender_blocks_exit.load(std::sync::atomic::Ordering::SeqCst) {
+									break;
+								}
+								task_ender_blocks_exit_notify.notified().await;
+							}
 						},
 						Some(tasks) = end_task_receiver.recv() => {
+							tracing::trace!(?tasks, "ending tasks by rescheduling them");
+
 							// NOTE: This is also used to initiate the calendar with enabled sources at the start.
 							// Reschedule source
 							for source in tasks {
 								scheduler.schedule_source(source, &mut rng, &self.storage).await?;
 							}
 							// NOTE: We need to reset the timer since new task might got scheduled earlier.
+
+							task_ender_blocks_exit.store(false, std::sync::atomic::Ordering::Relaxed);
+							task_ender_blocks_exit_notify.notify_waiters();
 						},
 						result = async {
 							let now = time::OffsetDateTime::now_utc();
 
 							match scheduler.next_time() {
 								Some(next_time) => {
+									tracing::trace!(?next_time, "start waiting for the next scheduled time");
+
 									// Sleep until next task
 									let sleep_duration = next_time - now;
 									if sleep_duration > time::Duration::ZERO {
@@ -206,6 +240,7 @@ impl super::Representative {
 
 									// FIX: This list might be lost when killed by ScheduleNotify.
 									// Pop all due tasks
+									task_ender_blocks_exit.store(true, std::sync::atomic::Ordering::Relaxed);
 									let due_tasks = scheduler.pop_due(time::OffsetDateTime::now_utc());
 
 									run_task_sender.send(due_tasks).unwrap();
@@ -217,14 +252,21 @@ impl super::Representative {
 								}
 							}
 
-							Ok::<(), Error>(())
-						} => { result? }
-					}
+							loop {
+								if !task_ender_blocks_exit.load(std::sync::atomic::Ordering::SeqCst) {
+									break;
+								}
+								task_ender_blocks_exit_notify.notified().await;
+							}
 
+							Ok::<(), Error>(())
+						}.instrument(tracing::trace_span!(parent: tracing::Span::current(), "SchdulerWaitingLoopBranch")) => { result? }
+					}
 				}
+
 				#[expect(unused, reason = "for type inference")]
 				Ok::<(), Error>(())
-			} => { result? }
+			}.instrument(tracing::trace_span!(parent: tracing::Span::current(), "SchedulerMainLoopBranch")) => { result? }
 		}
 
 		Ok(())
