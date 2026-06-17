@@ -2,10 +2,12 @@
 
 <h1>Aleym | عَلِيم (Core Library)</h1>
 
-[![release](https://github.com/zefr0x/aleym_core/actions/workflows/publish_release.yml/badge.svg)](https://github.com/zefr0x/aleym_core/actions/workflows/publish_release.yml)
 [![test](https://github.com/zefr0x/aleym_core/actions/workflows/test.yml/badge.svg)](https://github.com/zefr0x/aleym_core/actions/workflows/test.yml)
 [![lint](https://github.com/zefr0x/aleym_core/actions/workflows/lint.yml/badge.svg)](https://github.com/zefr0x/aleym_core/actions/workflows/lint.yml)
 [![pre-commit.ci status](https://results.pre-commit.ci/badge/github/zefr0x/aleym_core/main.svg)](https://results.pre-commit.ci/latest/github/zefr0x/aleym_core/main)
+
+[![release](https://github.com/zefr0x/aleym_core/actions/workflows/publish_release.yml/badge.svg)](https://github.com/zefr0x/aleym_core/actions/workflows/publish_release.yml)
+[![crates.io published version](https://img.shields.io/crates/v/aleym-core.svg)](https://crates.io/crates/aleym_core)
 
 This repository contain the **core library component of Aleym**. A game changing, feature-rich, and highly extensible
 **news aggregation system and knowledge base** designed to streamline the process of news aggregation, prioritizing
