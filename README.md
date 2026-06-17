@@ -7,27 +7,44 @@
 [![lint](https://github.com/zefr0x/aleym_core/actions/workflows/lint.yml/badge.svg)](https://github.com/zefr0x/aleym_core/actions/workflows/lint.yml)
 [![pre-commit.ci status](https://results.pre-commit.ci/badge/github/zefr0x/aleym_core/main.svg)](https://results.pre-commit.ci/latest/github/zefr0x/aleym_core/main)
 
-This repository contain the core library component of Aleym. A game changing, feature-rich, and highly extensible **news
-aggregation system and knowledge base** designed to streamline the process of news aggregation. This system prioritizes
+This repository contain the **core library component of Aleym**. A game changing, feature-rich, and highly extensible
+**news aggregation system and knowledge base** designed to streamline the process of news aggregation, prioritizing
 organization, **efficiency**, **security**, and **privacy**.
 
-Unlike a traditional RSS aggregator or feed reader, this innovative **feed aggregator** serves as an intermediary,
-seamlessly accessing feeds from various sources through specialized **informants**. It effectively communicates with
-**feed readers** to present the news, taking full control of the database and networking to ensure optimal organization.
-As a result, the primary role of the feed reader is simplified to just displaying the news, allowing for a more focused
-and user-friendly experience.
+The **feed aggregation engine** is implemented as a **library** that can be used to build a background service, serving
+Aleym's functionalities to any front-end.
 
 ---
 
-[<kbd><br><b>Architecture</b><br><br></kbd>](./ARCHITECTURE.md)
-[<kbd><br><b>Contribute</b><br><br></kbd>](./CONTRIBUTING.md) [<kbd><br><b>Security</b><br><br></kbd>](./SECURITY.md)
-[<kbd><br><b>Q&A</b><br><br></kbd>](#qa)
+**[`Architecture`](./ARCHITECTURE.md)** | **[`Contribute`](./CONTRIBUTING.md)** | **[`Security`](./SECURITY.md)** |
+**[`Q&A`](#qa)**
 
 ---
 
 <br>
 
 </div>
+
+## Worth Noting Features
+
+- Native **Tor** networking, enabling private fetching of feeds.
+- Privacy respecting **randomized scheduler**, hiding timing patters (no static periodic fetching).
+  - Experimental **smart scheduling** based on simple learning from previous fetches.
+- Experimental **news recommendation** based on simple learning algorithms.
+
+### Support News Informants
+
+#### Standard
+
+- [RSS](https://www.rssboard.org/rss-specification)
+- [ATOM](https://en.wikipedia.org/wiki/Atom_(web_standard))
+- [JSON Feed](https://www.jsonfeed.org/)
+
+#### Nonstandard
+
+##### Unofficial
+
+- [Telegram Channels](https://telegram.org/tour/channels) (Web Scraper)
 
 ## Q&A
 
