@@ -129,7 +129,7 @@ impl super::Representative {
 		ml_config: ml::scheduler::Config,
 	) -> Result<(), Error> {
 		let mut scheduler = ml::scheduler::Calender::new(ml_config);
-		let mut rng = rand::rng();
+		let mut rng: rand::rngs::StdRng = rand::make_rng();
 
 		let notify_new_enabled_source = tokio::sync::Notify::new();
 
