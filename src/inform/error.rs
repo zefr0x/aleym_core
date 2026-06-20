@@ -8,6 +8,8 @@ pub(crate) enum InformantErrorKind {
 	#[cfg(any(feature = "informant_feedrs", feature = "informant_telegram_web"))]
 	Parsing = 2,
 	Parameters = 3,
+	#[cfg(feature = "informant_feedrs")]
+	InvalidIntraction = 4,
 }
 
 impl From<InformantErrorKind> for i8 {
@@ -32,12 +34,25 @@ pub enum InformantError {
 	#[error("Network error occurred: {0}")]
 	NetworkError(#[from] crate::net::NetworkError),
 
+	#[cfg(feature = "informant_feedrs")]
+	#[error("Reached the HTTP redirection count limit")]
+	HttpRedirectionCountLimitReached,
+	#[cfg(feature = "informant_feedrs")]
+	#[error("HTTP redirection location header doesn't exist")]
+	NoHttpRedirectionLocation,
+	#[cfg(feature = "informant_feedrs")]
+	#[error("HTTP redirection location is invalid: {0}")]
+	InvalidHttpRedirectionLocation(url::Url),
+	#[cfg(feature = "informant_feedrs")]
+	#[error("HTTP redirection with unallowed scheme change from `{from}` to `{to}`")]
+	UnallowedRedirectionSchemeChange { from: String, to: String },
+
+	#[cfg(feature = "informant_feedrs")]
+	#[error("Invalid header value to string slice access: {0}")]
+	InvalidHttpHeaderValueToStr(#[from] crate::net::protocols::http::header::ToStrError),
 	#[cfg(any(feature = "informant_feedrs", feature = "informant_telegram_web"))]
-	#[error("URI parsing error occurred: {0}")]
-	InvalidUri(#[from] crate::net::protocols::http::InvalidUri),
-	#[cfg(any(feature = "informant_feedrs", feature = "informant_telegram_web"))]
-	#[error("URI contains no host")]
-	NoTargetUriAuthority,
+	#[error("URL parsing error occurred: {0}")]
+	InvalidUrl(#[from] url::ParseError),
 
 	#[cfg(feature = "informant_telegram_web")]
 	#[error("Invalid UTF-8 string parsing error occurred: {0}")]
@@ -72,6 +87,13 @@ impl InformantError {
 			InformantError::NetworkError(_) => InformantErrorKind::Network,
 
 			#[cfg(feature = "informant_feedrs")]
+			InformantError::HttpRedirectionCountLimitReached
+			| InformantError::NoHttpRedirectionLocation
+			| InformantError::InvalidHttpHeaderValueToStr(_)
+			| InformantError::InvalidHttpRedirectionLocation(_)
+			| InformantError::UnallowedRedirectionSchemeChange { from: _, to: _ } => InformantErrorKind::InvalidIntraction,
+
+			#[cfg(feature = "informant_feedrs")]
 			InformantError::FeedRsParsingError(_) => InformantErrorKind::Parsing,
 			#[cfg(feature = "informant_telegram_web")]
 			InformantError::TelegramWebUndefiedFormat
@@ -83,7 +105,7 @@ impl InformantError {
 				InformantErrorKind::Parameters
 			}
 			#[cfg(any(feature = "informant_feedrs", feature = "informant_telegram_web"))]
-			InformantError::InvalidUri(_) | InformantError::NoTargetUriAuthority => InformantErrorKind::Parameters,
+			InformantError::InvalidUrl(_) => InformantErrorKind::Parameters,
 		}
 	}
 }

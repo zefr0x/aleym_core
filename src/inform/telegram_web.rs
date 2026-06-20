@@ -1,5 +1,6 @@
 use std::str::FromStr;
 use std::sync::LazyLock;
+use url::Url;
 
 use time::{OffsetDateTime, format_description::well_known::Iso8601};
 
@@ -41,7 +42,7 @@ impl Informant {
 		compile_error!("HTTP protocol is required to be enabled for compiling with `informant_telegram_web`");
 
 		// TODO: When supported by our database, handle it with message indexes rather than just fetching latest batch.
-		let target = http::Uri::from_str(&format!("{TELEGRAM_WEB_ENDPOINT}/s/{channel_id}"))?;
+		let target = Url::parse(&format!("{TELEGRAM_WEB_ENDPOINT}/s/{channel_id}"))?;
 
 		let response = self
 			.network
@@ -49,7 +50,7 @@ impl Informant {
 				http::Request::builder()
 					.header(http::header::CONTENT_LENGTH, 0) // Avoid error 411 (Length Required)
 					.header("X-Requested-With", "XMLHttpRequest") // Only fetch message fragments without the whole HTML page
-					.uri(&target)
+					.uri(target.as_str())
 					.method(http::Method::POST)
 					.body(http::body_util::Empty::<http::body::Bytes>::new())
 					.unwrap(),
@@ -181,6 +182,7 @@ impl super::InformantTrait for Informant {
 mod tests {
 	use super::*;
 
+	// TODO: Have another test with real fetch so we can detect breaking changes.
 	const EXAMPLE_FEED: &[u8] = include_bytes!("../../test/assets/example_telegram_channel_feed.html");
 
 	#[tokio::test]

@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use url::Url;
 
 use super::{InformantError, utils};
 use crate::db::{InputNews, time::OffsetDateTime};
@@ -19,32 +19,97 @@ pub struct Parameters {
 }
 
 impl Informant {
-	async fn fetch(&self, target: http::Uri) -> Result<http::Response<http::body::Incoming>, InformantError> {
+	async fn fetch(&self, mut target: Url) -> Result<http::Response<http::body::Incoming>, InformantError> {
 		#[cfg(not(feature = "_net_protocol_http"))]
 		compile_error!("HTTP protocol is required to be enabled for compiling with `informant_feedrs`");
 
-		let response = self
-			.network
-			.http_request(
-				http::Request::builder()
-					.header(
-						http::header::HOST,
-						target.authority().ok_or(InformantError::NoTargetUriAuthority)?.as_str(),
-					)
-					.uri(&target)
-					.method(http::Method::GET)
-					.body(http::body_util::Empty::<http::body::Bytes>::new())
-					.unwrap(),
-				false,
-			)
-			.await?;
+		const REDIRECTION_CHAIN_LIMIT: u8 = match option_env!("FEEDRS_HTTP_REDIRECTION_CHAIN_LIMIT") {
+			Some(v) => const_str::parse!(v, u8),
+			None => 7, // Default
+		};
+		let mut redirection_chain_counter = 0;
 
-		// Convert failure status codes into errors.
-		match response.status() {
-			code if code.is_success() => Ok(response),
-			code => Err(InformantError::NetworkError(
-				net::NetworkError::UnsuccessfulHttpRequest(code),
-			)),
+		tracing::debug!(?target, "initiating fetch");
+
+		loop {
+			let response = self
+				.network
+				.http_request(
+					http::Request::builder()
+						.header(http::header::HOST, target.authority())
+						.uri(target.as_str())
+						.method(http::Method::GET)
+						.body(http::body_util::Empty::<http::body::Bytes>::new())
+						.unwrap(),
+					// TODO: Expose HTTP/2 prior knowledge as a parameter.
+					false,
+				)
+				.await?;
+
+			// TODO: Split redirection handlers to utility functions.
+			match response.status() {
+				// Check if response is success
+				code if code.is_success() => return Ok(response),
+				// Handle permanent redirection (currently treated as temporary)
+				http::StatusCode::MOVED_PERMANENTLY
+				| http::StatusCode::PERMANENT_REDIRECT
+				// TODO: Move temporary redirection handler to generic lower level implementation.
+				// Handle temporary redirection
+				| http::StatusCode::FOUND
+				| http::StatusCode::TEMPORARY_REDIRECT => {
+					// VULN: This implementation doesn't detect circular redirection loops, but only limits the count.
+					// SECURITY: Capping the redirection count to avoid infinite redirection attacks.
+					if redirection_chain_counter >= REDIRECTION_CHAIN_LIMIT {
+						return Err(InformantError::HttpRedirectionCountLimitReached); // Stop the redirection loop
+					} else if let Some(location) = response.headers().get(http::header::LOCATION)
+						&& !location.is_empty()
+					{
+						let location = location.to_str()?;
+
+						match Url::parse(location) {
+							// When the location is absolute, and has an authority
+							Ok(redirection_url) if redirection_url.has_authority() => {
+								tracing::debug!(?redirection_url, "handling absolute location redirection");
+
+								// Only allow upgrading scheme from HTTP to HTTPS
+								match (target.scheme(), redirection_url.scheme()) {
+									(from, to) if from == to || (from == "http" && to == "https") => {
+										target = redirection_url;
+									},
+									(from, to) => {
+										return Err(InformantError::UnallowedRedirectionSchemeChange { from: from.to_owned(), to: to.to_owned() });
+									}
+								}
+							}
+							// When the location is absolute, but doesn't have an authority
+							Ok(redirection_url) => {
+								return Err(InformantError::InvalidHttpRedirectionLocation(redirection_url));
+							}
+							// When the location is relative
+							Err(url::ParseError::RelativeUrlWithoutBase) => {
+								tracing::debug!(?location, "handling relative location redirection");
+
+								// Relatively join the new path with the old one
+								target = target.join(location)?;
+							}
+							Err(error) => Err(error)?
+						}
+					} else {
+						return Err(
+							InformantError::NoHttpRedirectionLocation,
+						);
+					}
+
+					redirection_chain_counter += 1;
+					tracing::debug!(redirection_chain_counter, new_target=?target, "proceeding with temporary redirection to another target");
+				}
+				// Convert other status codes into errors
+				code => {
+					return Err(InformantError::NetworkError(
+						net::NetworkError::UnsuccessfulHttpRequest(code),
+					));
+				}
+			}
 		}
 	}
 
@@ -90,7 +155,7 @@ impl super::InformantTrait for Informant {
 	#[tracing::instrument(skip(self), level = tracing::Level::DEBUG)]
 	async fn execute(self, parameters: Self::Parameters) -> Result<Vec<crate::db::InputNews>, InformantError> {
 		let response_bytes = self
-			.fetch(http::Uri::from_str(&parameters.feed_url)?)
+			.fetch(Url::parse(&parameters.feed_url)?)
 			.await?
 			// TODO: Pass the response to the parser as a stream if possible.
 			.collect()
