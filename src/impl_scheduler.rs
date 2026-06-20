@@ -122,14 +122,20 @@ impl super::Representative {
 
 	/// This never returns unless fatal error occurs.
 	///
-	/// For the `notifications_receiver`, you need to get it from [`db::StorageConnection::open_notifications_channel()`] or provide your own.
+	/// For the `notifications_receiver`, you need to get it from [`db::StorageConnection::open_notifications_channel()`]
+	/// or provide your own.
+	///
+	///
+	/// [`rand::Rng`] implementation may not be cryptographically secure, but must be statistically unpredictable since
+	/// it's used to randomize the fetch scheduling and might leak identifiable patterns, uniquely exposing the client if
+	/// not implemented or configured carefully.
 	pub async fn start_scheduler(
 		&self,
 		mut storage_notify_receiver: tokio::sync::mpsc::Receiver<db::ScheduleNotify>,
 		ml_config: ml::scheduler::Config,
+		mut rng: &mut impl rand::Rng,
 	) -> Result<(), Error> {
 		let mut scheduler = ml::scheduler::Calender::new(ml_config);
-		let mut rng = rand::rng();
 
 		let notify_new_enabled_source = tokio::sync::Notify::new();
 

@@ -17,7 +17,7 @@
 // FIX: Consider if we can improve the design to avoid this.
 #![cfg_attr(
 	all(feature = "net_transport_tls", feature = "net_interface_tor"),
-	recursion_limit = "134"
+	recursion_limit = "256"
 )]
 
 pub mod db;

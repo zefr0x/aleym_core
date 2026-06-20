@@ -16,12 +16,17 @@ impl StorageConnection {
 	/// Shouldn't be used frequently to update the list when the user may be focusing on it.
 	///
 	/// `candidates_limit` is the bottleneck, it should be large enough for better and diverse recommendations.
-	#[tracing::instrument(skip(self, ml_config), level = tracing::Level::DEBUG)]
+	///
+	///
+	/// [`rand::Rng`] implementation provide randomness for selecting weighted candidate items for recoemmendation,
+	/// basic pseudo-random number generators (PRNGs) are suitable for this case.
+	#[tracing::instrument(skip(self, ml_config, rng), level = tracing::Level::DEBUG)]
 	pub async fn get_news_recommendations(
 		&self,
 		limit: u64,
 		candidates_limit: u64,
 		ml_config: &ml::recommendation::Config,
+		mut rng: &mut impl rand::Rng,
 	) -> Result<Vec<news::Model>, StorageError> {
 		// First, get candidates
 
@@ -128,7 +133,7 @@ impl StorageConnection {
 		// PERF: This is messy due to `sample_weighted()` returning references, there is no owned value return variant.
 
 		let sample_indexes = weighted_candidates
-			.sample_weighted(&mut rand::rng(), limit as usize, |item| item.2)?
+			.sample_weighted(&mut rng, limit as usize, |item| item.2)?
 			.map(|item| item.0)
 			.collect::<Vec<usize>>();
 
@@ -311,13 +316,23 @@ mod tests {
 		};
 		let config = crate::ml::recommendation::Config::default();
 
-		assert!(con.get_news_recommendations(5, 15, &config).await.unwrap().is_empty());
+		assert!(
+			con.get_news_recommendations(5, 15, &config, &mut rand::rng())
+				.await
+				.unwrap()
+				.is_empty()
+		);
 
 		setup_news_items(&con, OffsetDateTime::now_utc()).await;
 
-		con.get_news_recommendations(5, 15, &invalid_config).await.unwrap_err();
+		con.get_news_recommendations(5, 15, &invalid_config, &mut rand::rng())
+			.await
+			.unwrap_err();
 
-		let recommendations = con.get_news_recommendations(10, 30, &config).await.unwrap();
+		let recommendations = con
+			.get_news_recommendations(10, 30, &config, &mut rand::rng())
+			.await
+			.unwrap();
 		assert!(!recommendations.is_empty());
 		assert!(recommendations.len() <= 3);
 		for news in recommendations {
